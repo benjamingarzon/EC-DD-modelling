@@ -6,7 +6,6 @@ rm(list = ls())
 ######################################################################
 # definitions
 library(rstan)
-library(loo)
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 source('./funcs.R')
@@ -17,14 +16,17 @@ WDD = file.path(WD, 'all')
 # Arguments
 ######################################################################
 
-if(T){
+if(F){
   INPUT_FILE = 'processed_data.RData'
   MODEL_NAME = 'dd_hyperbolic_exp_ddm'
-  
+  NITER = 800
+  NWARMUP = 700
 } else {
   args = commandArgs(trailingOnly=TRUE)
-  INPUT_FILE = args[1] #'processed_data.RData'
-  MODEL_NAME = args[2] #'dd_hyperbolic_ddm'
+  INPUT_FILE = args[1] 
+  MODEL_NAME = args[2] 
+  NITER = as.numeric(args[3])
+  NWARMUP = NITER - 500
 }  
 MODEL_FILE = file.path('stan_models', paste(MODEL_NAME, 'stan', sep = '.'))
 
@@ -52,11 +54,22 @@ if (MODEL_NAME == 'dd_hyperbolic_ddm')
       sigma_slope_p    = 0.5
     )
   }
-if (MODEL_NAME == 'dd_hyperbolic_exp_ddm')
+
+if (MODEL_NAME == 'dd_hyperbolic_nl_ddm'  )
   genInitList = function() {
     list(
       mu_p     =  c(rep(0, 4),-3, 0),
-      sigma_p    = c(rep(0.5, 4), 3, 0.1),
+      sigma_p    = c(rep(0.5, 4), 3, 0.01),
+      mu_slope_p     = 0,
+      sigma_slope_p    = 0.5
+    )
+  }
+
+if (MODEL_NAME == 'dd_hyperbolic_nl2_ddm')
+  genInitList = function() {
+    list(
+      mu_p     =  c(rep(0, 4),-3, 0, 0),
+      sigma_p    = c(rep(0.5, 4), 3, 1, 0.01),
       mu_slope_p     = 0,
       sigma_slope_p    = 0.5
     )
@@ -71,8 +84,8 @@ stepsize      = 1
 max_treedepth = 13
 nchain        = 4
 nthin         = 1
-niter         = 500
-nwarmup       = 400
+niter         = NITER
+nwarmup       = NWARMUP
 nthin         = 1
 
 # Estimation
@@ -91,10 +104,11 @@ myfit <- stan(
 ######################################################################
 # Parameter extraction and storage
 ######################################################################
+datetime = format(Sys.time(), '%d-%m-%Y_%H:%M')
 save(myfit, file = paste0(
   'results/',
   MODEL_NAME,
-  format(Sys.time(), '%d-%m-%Y_%H:%M'),
+  datetime,
   '.RData'
 ))
 
@@ -103,9 +117,10 @@ myfit_summary = summary(myfit)$summary
 
 save(parVals,
      myfit_summary,
+     dataList,
      file = paste0(
        'results/',
        MODEL_NAME,
-       format(Sys.time(), '%d-%m-%Y_%H:%M'),
+       datetime,
        '-pars.RData'
      ))
