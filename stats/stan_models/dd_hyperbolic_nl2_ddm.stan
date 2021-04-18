@@ -48,8 +48,8 @@ transformed parameters {
   vector[M] ev;
   vector[M] ev_exp;
 
-  gammal = mu_p[6] + sigma_p[6] * gammal_pr;
-  gammas = exp(mu_p[7] + sigma_p[7] * gammas_pr);
+  gammas = exp(mu_p[6] + sigma_p[6] * gammas_pr);
+  gammal = mu_p[7] + sigma_p[7] * gammal_pr;
   k = Phi_approx( mu_p[5] + sigma_p[5] * k_pr ) * 100;
   ev = amount_later ./( 1 + k[instance] .* delay_later) - amount_sooner ./( 1 + k[instance] .* delay_sooner);
   

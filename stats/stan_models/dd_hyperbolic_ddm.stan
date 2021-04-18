@@ -101,4 +101,6 @@ generated quantities {
       else 
         log_lik[instance[j]]  += wiener_lpdf(RT[j]| boundary[j], nondectime[j], 1 - bias[j], -drift[j]);  
     }
+    
+
 }

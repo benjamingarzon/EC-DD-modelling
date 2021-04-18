@@ -1,0 +1,82 @@
+
+## Extract parameters
+
+```{r}
+# posterior predictive checks
+rm(list = ls())
+library(runjags)
+library(rjags)
+library(MCMCvis)
+library(coda)
+source('./funcs.R')
+WD = '~/Software/EC-DD-Task/data'
+WDD = file.path(WD, 'all')
+
+N_samples = 1000
+
+pars = c("b.drift.delay.mu", "b.drift.amount.mu", "b.drift.delay.pr", "b.drift.amount.pr", 
+            "nondectime.mu", "nondectime.pr", 
+            "noise.mu","noise.pr", 
+            "bias.mu", "bias.kappa", 
+            "gamma.mu", "gamma.pr", 
+#            "time.mu", "time.pr", 
+            "deviance" )
+
+check_model = function(myfit, myfit_rjags, myfit_samples) {
+  
+myfit.MCMCsummary = MCMCsummary(myfit_samples, round = 2)
+
+rhat = myfit.MCMCsummary$Rhat 
+n.eff = myfit.MCMCsummary$n.eff
+
+# myfit.MCMCpstr =MCMCpstr(myfit_rjags, func = mean,
+#          type = 'summary')
+
+MCMCtrace(myfit_samples, 
+        params = pars,
+        ISB = FALSE,
+        pdf = FALSE)
+
+MCMCplot(myfit_samples, 
+         params = pars[-length(pars)] ,
+         ref_ovl = TRUE)
+
+print(sort(rhat, decreasing = T)[1:20])
+  
+#dic.fit = dic.samples(as.jags(myfit)) #
+#dic.fit = runjags::extract(myfit, what = "dic", force.resample = T)
+#  loo.fit = loo(myfit)
+#  waic.fit = 0 # waic(myfit)
+#  ics = c(loo.fit, waic.fit)
+#  names(ics) = c('loo', 'waic')
+#  return(ics)
+}
+```
+
+
+```{r}
+# Load previous fits
+#load('results/attributewise_simple_ddm-03-04-2021_06:08-10000-4e+05.RData') # deviance ~ 3200
+load('results/attributewise_exponential_ddm-12-04-2021_20:13-10000-2e+06.RData') # deviance ~ 3100  
+
+chain1 = as.matrix(coda_samples[[1]])
+chain2 = as.matrix(coda_samples[[2]])
+chain3 = as.matrix(coda_samples[[3]])
+chain4 = as.matrix(coda_samples[[4]])
+chain = rbind(chain1, chain2, chain3, chain4)
+nsamp = nrow(chain1)
+
+chaincolor = c(rep('red', nsamp), rep('blue', nsamp), rep('green', nsamp), rep('yellow', nsamp))
+#plot(chain[, 'gamma.mu'], chain[, 'b.drift.amount.pr'], col = chaincolor, cex = 0.1, pch = 20)
+
+#pars = monitor[ c(grep('\\.mu', monitor), grep('\\.pr$', monitor), grep('\\.kappa', monitor))] 
+pairs(chain[, pars[-c(11, 12, 13)] ], col = chaincolor, pch = 20, cex = 0.1)
+#pairs(chain[, pars] , col = chaincolor, pch = 20, cex = 0.1)
+
+ics.linear = check_model(myfit, myfit_rjags, myfit_samples)
+#ics.nl = check_model(myfit.nl)
+#ics.nl2 = check_model(myfit.nl2)
+
+#print(ics.linear$loo)
+
+```
