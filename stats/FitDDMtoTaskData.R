@@ -6,6 +6,7 @@ rm(list = ls())
 ######################################################################
 # definitions
 library(rstan)
+library(RWiener)
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
 source('./funcs.R')
@@ -18,7 +19,7 @@ WDD = file.path(WD, 'all')
 
 if(F){
   INPUT_FILE = 'processed_data.RData'
-  MODEL_NAME = 'dd_hyperbolic_exp_ddm'
+  MODEL_NAME = 'dd_hyperbolic_nl_ddm'
   NITER = 800
   NWARMUP = 700
 } else {
@@ -45,11 +46,11 @@ numSubjs = dataList$N
 # Generate initial values
 ######################################################################
 # This initialization will facilitate the sampling
-if (MODEL_NAME == 'dd_hyperbolic_ddm')
+if (MODEL_NAME == 'dd_hyperbolic_ddm' ||  MODEL_NAME == 'value_diff_ddm')
   genInitList = function() {
     list(
-      mu_p     =  c(rep(0, 4),-3),
-      sigma_p    = c(rep(0.5, 4), 3),
+      mu_p     =  c(0, -3, 0, 0, -7),
+      sigma_p    = c(0.5, 3, 0.5, 0.5, 3),
       mu_slope_p     = 0,
       sigma_slope_p    = 0.5
     )
@@ -58,8 +59,8 @@ if (MODEL_NAME == 'dd_hyperbolic_ddm')
 if (MODEL_NAME == 'dd_hyperbolic_nl_ddm'  )
   genInitList = function() {
     list(
-      mu_p     =  c(rep(0, 4),-3, 0),
-      sigma_p    = c(rep(0.5, 4), 3, 0.01),
+      mu_p     =  c(0.8, 0, 0, 1, -2.5, -5),
+      sigma_p    = c(0.2, 0.3, 0.15, 0.2, 0.5, 2),
       mu_slope_p     = 0,
       sigma_slope_p    = 0.5
     )
@@ -68,8 +69,8 @@ if (MODEL_NAME == 'dd_hyperbolic_nl_ddm'  )
 if (MODEL_NAME == 'dd_hyperbolic_nl2_ddm')
   genInitList = function() {
     list(
-      mu_p     =  c(rep(0, 4),-3, 0, 0),
-      sigma_p    = c(rep(0.5, 4), 3, 1, 0.01),
+      mu_p     =  c(0, -3, 0, 0, -7, 4, 0),
+      sigma_p    = c(0.5, 3, 0.5, 0.5, 3, 0.1, 0.1),
       mu_slope_p     = 0,
       sigma_slope_p    = 0.5
     )
@@ -108,12 +109,32 @@ datetime = format(Sys.time(), '%d-%m-%Y_%H:%M')
 save(myfit, file = paste0(
   'results/',
   MODEL_NAME,
-  datetime,
+  datetime, 
+  '-', 
+  NITER,
   '.RData'
 ))
 
 parVals <- extract(myfit, permuted = T)
 myfit_summary = summary(myfit)$summary
+
+######################################################################
+# Generate samples for posterior predictive checks
+######################################################################
+NSAMPLES = 1000
+
+RT.new = NULL
+for (j in 1:M) {
+  if (dataList$choice[j] > 0)
+    RT[j] = wiener(boundary[j], nondectime[j], bias[j], drift[j]); 
+  else 
+    RT[j] = wiener(boundary[j], nondectime[j], 1 - bias[j], -drift[j]);
+}
+
+#rwiener(NSAMPLES, boundary[j], nondectime[j], bias[j], drift[j])
+#  tmp$subjID <- rep(s, n_per_condition)
+#  as.data.frame(tmp)
+#}
 
 save(parVals,
      myfit_summary,
@@ -122,5 +143,6 @@ save(parVals,
        'results/',
        MODEL_NAME,
        datetime,
-       '-pars.RData'
-     ))
+       '-', 
+       NITER,
+       '-pars.RData'))

@@ -16,8 +16,8 @@ data {
 parameters {
   
   // Hyper(group)-parameters  
-  vector[6] mu_p;  
-  vector<lower=0>[6] sigma_p;
+  vector[5] mu_p;  
+  vector<lower=0>[5] sigma_p;
   
   // for slopes
   real mu_slope_p;  
@@ -29,8 +29,7 @@ parameters {
   vector[N] drift_pr;
   vector[N] nondectime_pr;
   vector[N] drift_slope_pr;
-  vector[N] k_pr;
-  vector[N] gamma_pr;
+  vector[N] w_pr;
   
 }
 transformed parameters {
@@ -39,29 +38,19 @@ transformed parameters {
   vector<lower=0,upper=1>[M] bias;  // initial bias
   vector[M] drift; // drift rate
   vector<lower=RTbound, upper=max(minRT)>[M] nondectime; // nondecision time
-
-  vector<lower=0,upper=100>[N] k; // discount rate
-  vector<lower=0>[N] gamma; 
+  
+  vector<lower=0,upper=1>[N] w;
 
   vector[M] ev;
-  vector[M] ev_exp;
 
-  gamma = exp(mu_p[6] + sigma_p[6] * gamma_pr);
-  k = Phi_approx( mu_p[5] + sigma_p[5] * k_pr ) * 100;
-  ev = amount_later ./( 1 + k[instance] .* delay_later) - amount_sooner ./( 1 + k[instance] .* delay_sooner);
-  
-  for (j in 1:M){
-      ev_exp[j] = ev[j]/fabs(ev[j]) * (fabs(ev[j]))^ gamma[instance[j]];
-  }
-//    if (ev[j] >0 ) ev_exp[j] = ev[j] ^ gamma[instance[j]];
-//    else           ev_exp[j] = - (- ev[j]) ^ gamma[instance[j]]; 
+  w = Phi_approx( mu_p[5] + sigma_p[5] * w_pr );
+  ev = w[instance] .* delay_later - delay_sooner;
 
-  
   boundary = exp( mu_p[1] + sigma_p[1] * boundary_pr[instance]);   
-  drift = mu_p[2] + sigma_p[2] * drift_pr[instance] + (mu_slope_p + sigma_slope_p * drift_slope_pr[instance]).* ev_exp;
+  drift = mu_p[2] + sigma_p[2] * drift_pr[instance] + (mu_slope_p + sigma_slope_p * drift_slope_pr[instance]).* ev;
   bias = Phi_approx( mu_p[3] + sigma_p[3] * bias_pr[instance]); 
   nondectime =  RTbound + (minRT[instance]-RTbound) .* Phi_approx( mu_p[4] + sigma_p[4] * nondectime_pr[instance]);
-  
+
 }
 
 model {
@@ -77,8 +66,7 @@ model {
   drift_pr ~ normal(0, 1);
   nondectime_pr ~ normal(0, 1);
   drift_slope_pr ~ normal(0, 1);
-  k_pr ~ normal(0, 1);
-  gamma_pr ~ normal(0, 1);
+  w_pr ~ normal(0, 1);
 
   // Loop across observations
   for (j in 1:M) {
@@ -113,4 +101,6 @@ generated quantities {
       else 
         log_lik[instance[j]]  += wiener_lpdf(RT[j]| boundary[j], nondectime[j], 1 - bias[j], -drift[j]);  
     }
+    
+
 }

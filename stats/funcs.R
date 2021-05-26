@@ -331,7 +331,7 @@ organize_data = function(rawdata, grouping_var, long = F) {
     xx = melt(dataList$RT, varnames = c("instance", "trial"))
     
     dataList$RT = make_long(dataList$RT)
-    keep = (dataList$RT > 0 ) & (dataList$amount_later < 5)
+    keep = (dataList$RT > 0 ) & (dataList$amount_later  > 5)
     dataList$instance = xx$instance[keep]
     dataList$trial = xx$trial[keep]
     dataList$amount_later = make_long(dataList$amount_later)[keep]
