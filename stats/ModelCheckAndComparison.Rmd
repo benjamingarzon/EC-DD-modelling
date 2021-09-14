@@ -6,7 +6,7 @@
 rm(list = ls())
 library(rstan)
 library(loo)
-source("./funcs.R")
+source("./analysis_funcs.R")
 WD = '~/Software/EC-DD-Task/data'
 N_samples = 1000
 check_model = function(myfit) {

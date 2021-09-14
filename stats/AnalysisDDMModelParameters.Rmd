@@ -10,7 +10,7 @@ rm(list = ls())
 library(rstan)
 library(lme4)
 library(lmerTest)
-source("./funcs.R")
+source("./analysis_funcs.R")
 
 WD = '~/Software/EC-DD-Task/data'
 WDD = file.path(WD, 'experiment2')
