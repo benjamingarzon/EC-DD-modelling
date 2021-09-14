@@ -1,44 +1,39 @@
 # Fit DDM model to task data
 rm(list = ls())
+setwd("~/Software/EC-DD-Task/stats")
 
 ######################################################################
 # Definitions
 ######################################################################
 # definitions
-USER2JAGS = F
-GETDIC = F 
-
-if (USER2JAGS){
-#  library(dclone)
-#  library(parallel)
-  library(R2jags)
-} else {
-  library(runjags)
-  library(coda)
-} 
+library(runjags)
+library(coda)
 library(rjags)
 library(MCMCvis)
 
 source('./funcs.R')
 WD = '~/Software/EC-DD-Task/data'
-WDD = file.path(WD, 'all')
+WDD = file.path(WD, 'experiment2')
 
 ######################################################################
 # Arguments
 ######################################################################
-if(F){
-  INPUT_FILE = 'processed_data.RData'
-  MODEL_NAME = 'attributewise_simple_ddm'
-  NSAMPLES = 200
-  NBURNIN = 100
+if(T){
+  INPUT_FILE = 'processed_data_censored.RData'
+#  INPUT_FILE = 'processed_data.RData'
+  MODEL_NAME = 'linear_drift_ddm3' 
+  NSAMPLES = 500
+  NBURNIN = 1000
   INCLUDED_SUB = '' #results/included_subjects.txt'
+  USE_CALIBRATION = F
 } else {
   args = commandArgs(trailingOnly=TRUE)
   INPUT_FILE = args[1] 
   MODEL_NAME = args[2] 
   NSAMPLES = as.numeric(args[3])
   NBURNIN = as.numeric(args[4])
-  INCLUDED_SUB = args[5] 
+  USE_CALIBRATION = ifelse(args[5] == 'calib', T, F) 
+  INCLUDED_SUB = args[6] 
 }  
 
 MODEL_FILE = file.path('jags_models', paste(MODEL_NAME, 'jags', sep = '.'))
@@ -47,26 +42,52 @@ MODEL_FILE = file.path('jags_models', paste(MODEL_NAME, 'jags', sep = '.'))
 # Load and prepare data
 ######################################################################
 load(file.path(WDD, INPUT_FILE))
+
+# add calibration data
+calibratedata = NULL
+SUFFIX = ''
+if (!is.null(calibratedata.all) && USE_CALIBRATION){
+  for (context in unique(choicedata.common$context)){
+    calibratedata.all$context = context
+    calibratedata = rbind(calibratedata, calibratedata.all)
+  }
+  calibratedata = merge(unique(choicedata.common[c('subjID', 'context', 'background_col')]), calibratedata, by = c('subjID', 'context'), all.x = T)
+  choicedata.common = choicedata.common[colnames(calibratedata)]
+  choicedata.common$iscalibration = 0 
+  calibratedata$iscalibration = 1  
+  choicedata.common = rbind(choicedata.common, calibratedata)
+  choicedata.common = choicedata.common %>% arrange(subjID, context, -iscalibration) # reorder 
+  SUFFIX = paste0(SUFFIX, '-calibrate')
+  print("Using calibrated")
+  
+}
+
 grouping_var = 'subj_context'
 choicedata.common$subj_context = paste(choicedata.common$subjID, choicedata.common$context)
 if (INCLUDED_SUB != ''){ # if we want to include some subjects only
   included_subjects = unlist(read.table(INCLUDED_SUB))
   choicedata.common = choicedata.common %>% filter (subjID %in% included_subjects)
-  SUFFIX = '-subsample'
-} else {
-  SUFFIX = ''
+  SUFFIX = paste0(SUFFIX, '-subsample')
 } 
+if (F) choicedata.common = subset(choicedata.common, !subjID %in% c("60f534e6b1227dde7dea8273", 
+                                                             "60f5a27ad908d2f80eaaa443", 
+                                                             "60fabcb2529d45989426e018", 
+                                                             "60fcb6fda208edc3ccf3fe6d", 
+                                                             "60feff18b2baaaf388f1fa86"))
 
 dataList = organize_data(choicedata.common, grouping_var, long = T)
+
 subjList <-
   unique(choicedata.common[c('subjID', 'context', 'background_col', grouping_var)])  # list of subjects x blocks
 numSubjs = dataList$N
 dataList$amount_diff = dataList$amount_later - dataList$amount_sooner
 dataList$delay_diff = dataList$delay_later - dataList$delay_sooner
-dataList$RT.signed = dataList$RT
+dataList$amount_later_centered = dataList$amount_later - 5 #mean center
+dataList$RT.signed = rnorm(length(dataList$RT), 0, 2)
 idx = dataList$choice == 0
-dataList$RT.signed[idx] = -dataList$RT[idx]
-
+#dataList$RT.signed[idx] = -dataList$RT[idx]
+dataList$calibration_indices = which(dataList$iscalibration == 1)
+dataList$nocalibration_indices = which(dataList$iscalibration == 0)
 
 ######################################################################
 # Generate initial values
@@ -74,48 +95,43 @@ dataList$RT.signed[idx] = -dataList$RT[idx]
 # This initialization will facilitate the sampling
   
   # This initialization will facilitate the sampling
-  inits1 <- list( noise.mu=0.5, noise.pr=0.05,  time.mu=0.5, time.pr= 0.05, nondectime.mu=0.05,
-                              nondectime.pr=0.05,  b.drift.delay.mu=0.3, b.drift.delay.pr=0.65, b.drift.amount.mu=0.3, 
-                              b.drift.amount.pr=3, bias.mu=0.4, bias.kappa=1, RT.signed_pred = dataList$RT.signed,  
-                              gamma.mu = 1.05, gamma.pr = 4.3,
-                              .RNG.name="base::Super-Duper", .RNG.seed=99999)
+priorsd = 0.001
+inits1 <- list( boundary.mu = 2, # + rnorm(1, 0, priorsd), 
+                  bias.mu = 0.5,# + rnorm(1, 0, priorsd),
+                  b.drift.intercept.mu = 0, # + rnorm(1, 0, priorsd),
+                  b.drift.amount.mu = 0, #+ rnorm(1, 0, priorsd),
+                  nondectime.mu = 1, # + rnorm(1, 0, priorsd),
+                  .RNG.name="base::Super-Duper", .RNG.seed=9999)
+
+inits2 <- list( boundary.mu = 2, # + rnorm(1, 0, priorsd), 
+                bias.mu = 0.5, # + rnorm(1, 0, priorsd),
+                b.drift.intercept.mu = 0, # + rnorm(1, 0, priorsd),
+                b.drift.amount.mu = 0, # + rnorm(1, 0, priorsd),
+                nondectime.mu = 1, #+ rnorm(1, 0, priorsd),
+                .RNG.name="base::Wichmann-Hill", .RNG.seed=1234)
+
+inits3 <- list( boundary.mu = 2, # + rnorm(1, 0, priorsd), 
+                bias.mu = 0.5, # + rnorm(1, 0, priorsd),
+                b.drift.intercept.mu = 0, # + rnorm(1, 0, priorsd),
+                b.drift.amount.mu = 0, # + rnorm(1, 0, priorsd),
+                nondectime.mu = 1, # + rnorm(1, 0, priorsd),
+                .RNG.name="base::Mersenne-Twister", .RNG.seed=77 )
   
-  inits2 <- list( noise.mu=0.1, noise.pr=0.05,  time.mu=-0.5, time.pr= 0.05, nondectime.mu=0.1,
-                              nondectime.pr=0.05, b.drift.delay.mu=0.4, b.drift.delay.pr=0.5, b.drift.amount.mu=0.4, 
-                              b.drift.amount.pr=2, bias.mu=0.5, bias.kappa=1, RT.signed_pred = dataList$RT.signed, 
-                              gamma.mu = 1.1, gamma.pr = 4.2,
-                              .RNG.name="base::Wichmann-Hill", .RNG.seed=1234)
-  
-  inits3 <- list( noise.mu=0.3, noise.pr=0.05, time.mu=0.1, time.pr= 0.05, nondectime.mu=0.12,
-                              nondectime.pr=0.05,  b.drift.delay.mu=0.2, b.drift.delay.pr=0.4, b.drift.amount.mu=0.2, 
-                              b.drift.amount.pr=4, bias.mu=0.3, bias.kappa=1, RT.signed_pred = dataList$RT.signed, 
-                              gamma.mu = 0.9, gamma.pr = 4.2,
-                              .RNG.name="base::Mersenne-Twister", .RNG.seed=77 )
-  
-  inits4 <- list( noise.mu=0.2, noise.pr=0.05, time.mu=-0.1, time.pr= 0.05, nondectime.mu=0.15,
-                              nondectime.pr=0.05,  b.drift.delay.mu=0.1, b.drift.delay.pr=0.3, b.drift.amount.mu=0.1, 
-                              b.drift.amount.pr=2.5, bias.mu=0.6, bias.kappa=1, RT.signed_pred = dataList$RT.signed, 
-                              gamma.mu = 1, gamma.pr = 4.1, 
-                              .RNG.name="base::Mersenne-Twister", .RNG.seed=6666 )
+inits4 <- list( boundary.mu = 2, # + rnorm(1, 0, priorsd), 
+                bias.mu = 0.5, # + rnorm(1, 0, priorsd),
+                b.drift.intercept.mu = 0, # + rnorm(1, 0, priorsd),
+                b.drift.amount.mu = 0, # + rnorm(1, 0, priorsd),
+                nondectime.mu = 1, # + rnorm(1, 0, priorsd),
+                .RNG.name="base::Mersenne-Twister", .RNG.seed=6666 )
 
     
-  monitor = c("b.drift.delay.mu", "b.drift.amount.mu", 
-              "b.drift.delay.pr", "b.drift.amount.pr",
-              "b.drift.delay.p",  "b.drift.amount.p", 
-              "drift.pr.p",
-              "nondectime.mu", "nondectime.pr", "nondectime.p", 
-              "noise.mu","noise.pr", "noise.p", 
-              "bias.mu", "bias.kappa", "bias.p",
+  monitor = c("b.drift.intercept.mu", "b.drift.intercept.sd", "b.drift.intercept.p",
+              "b.drift.amount.mu", "b.drift.amount.sd", "b.drift.amount.p", 
+              "nondectime.mu", "nondectime.sd", "nondectime.p", 
+              "boundary.mu","boundary.sd", "boundary.p", 
+              "bias.mu", "bias.sd", "bias.p",
               "deviance")
-  
-if (MODEL_NAME == 'attributewise_exponential_ddm'){ 
-  monitor = c(monitor, "gamma.mu", "gamma.pr", "gamma.p")
-}
 
-if (MODEL_NAME == 'attributewise_simple_ddm_2'){ 
-  monitor = c(monitor, "time.mu", "time.pr", "time.p")
-}
-  
 ######################################################################
 # Parameter estimation
 ######################################################################
@@ -124,86 +140,23 @@ if (MODEL_NAME == 'attributewise_simple_ddm_2'){
 NTHIN = 10
 NCHAINS = 4
 NFINALSAMPLES = min(1000, NSAMPLES)
-#cl <- makePSOCKcluster(NCHAINS)
-# Estimation
-#if (USER2JAGS) {
-  #list2env(list(NBURNIN = NBURNIN, NSAMPLES = NSAMPLES), envir = globalenv())
-  #assign("NBURNIN", NBURNIN, globalenv())
-  #assign("NITER", NSAMPLES, globalenv())
-  # use R2jags
-#  myinits =  
-  # load.module("wiener")
-  # parLoadModule(cl, "wiener")
-  # load.module("dic")
-  # parLoadModule(cl, "dic")
-  # myfit <- jags.parfit(data = dataList,
-  #              inits = list(inits1, inits2, inits3, inits4),
-  #              params = monitor,
-  #              model = file.path(MODEL_FILE),
-  #              n.chains = NCHAINS,
-  #              n.iter = NSAMPLES,
-  #              n.burnin = NBURNIN,
-  #              n.thin = NTHIN,
-  #              DIC = T)
-  # 
-  # stopCluster(cl)
-  # unload.module("wiener")
-  # parUnloadModule(cl, "wiener")
-  # unload.module("dic")
-  # parUnloadModule(cl, "dic")
-
-# myfit <- do.call(jags.parallel, list(data = dataList,
-#                      inits = list(inits1),
-#                      #inits = list(inits1, inits2, inits3, inits4),
-#                      parameters.to.save = monitor,
-#                      model.file = file.path(MODEL_FILE),
-#                      n.chains = NCHAINS,
-#                      n.iter = NSAMPLES,
-#                      #n.burnin = NBURNIN,
-#                      #n.thin = NTHIN,
-#                      DIC = T, 
-#                      jags.module = c("wiener", "dic")))
-
-#stopCluster(cl)
-#unload.module("wiener")
-#parUnloadModule(cl, "wiener")
-#unload.module("dic")
-#parUnloadModule(cl, "dic")
-#} else {
-  jags_data = dump.format(dataList[c('N', 'M', 'RT.signed', 'instance', 'RT','amount_later', 'amount_sooner', 'amount_diff', 'delay_diff')])
+mycolumns = c('N', 'M', 'RT.signed', 'instance', 'RT', 'amount_later', 'amount_later_centered', 'amount_sooner', 'delay_later', 'choice')
+if (USE_CALIBRATION) mycolumns = c(mycolumns, 'calibration_indices', 'nocalibration_indices')
+  jags_data = dump.format(dataList[mycolumns])
   
-# runjags    
-  if (GETDIC){
-    monitor = c(monitor, "dic")
+
     myfit <- run.jags(model=file.path(MODEL_FILE),
                       monitor = monitor,
                       data = jags_data,
                       n.chains = NCHAINS,
-                      inits = c(dump.format(inits1), dump.format(inits2), dump.format(inits3), dump.format(inits4)),
-                      method = "simple",
-                      modules = c("wiener", "dic"),
-                      burnin = NBURNIN,
-                      sample = NSAMPLES,
-                      thin = NTHIN)
-    stophere
-  } else {
-    
-    myfit <- run.jags(model=file.path(MODEL_FILE),
-                      monitor = monitor,
-                      data = jags_data,
-                      n.chains = NCHAINS,
-                      inits = c(dump.format(inits1), dump.format(inits2), dump.format(inits3), dump.format(inits4)),
+                    #  inits = c(dump.format(inits1), dump.format(inits2), dump.format(inits3), dump.format(inits4)),
                       method = "parallel",
                       modules = "wiener",
                       burnin = NBURNIN,
                       sample = NSAMPLES,
                       thin = NTHIN)
     
-  } 
 
-#}
-
-#stophere
 
 ######################################################################
 # Parameter extraction and storage

@@ -14,13 +14,22 @@ WDD = file.path(WD, 'all')
 
 N_samples = 1000
 
-pars = c("b.drift.delay.mu", "b.drift.amount.mu", "b.drift.delay.pr", "b.drift.amount.pr", 
-            "nondectime.mu", "nondectime.pr", 
-            "noise.mu","noise.pr", 
-            "bias.mu", "bias.kappa", 
-            "gamma.mu", "gamma.pr", 
-#            "time.mu", "time.pr", 
-            "deviance" )
+#pars = c("b.drift.delay.mu", "b.drift.amount.mu", "b.drift.delay.pr", "b.drift.amount.pr", 
+#            "nondectime.mu", "nondectime.pr", 
+#            "noise.mu","noise.pr", 
+#            "bias.mu", "bias.kappa", 
+#            "gamma.mu", "gamma.pr", 
+#            "deviance" )
+
+pars = c(#"e.sG", "e.rG", 
+         "b.drift.intercept.mu", "b.drift.amount.mu", 
+         "b.drift.intercept.pr", "b.drift.amount.pr", 
+         "nondectime.mu", "nondectime.pr", 
+         "noise.mu","noise.pr", 
+#         "w.mu", "w.kappa",
+#         "normk.mu", "normk.pr",
+         "bias.mu", "bias.kappa", 
+         "deviance" )
 
 check_model = function(myfit, myfit_rjags, myfit_samples) {
   
@@ -41,6 +50,26 @@ MCMCplot(myfit_samples,
          params = pars[-length(pars)] ,
          ref_ovl = TRUE)
 
+MCMCplot(myfit_samples, 
+         params = 'b.drift.intercept.p',
+         ref_ovl = TRUE)
+
+MCMCplot(myfit_samples, 
+         params = 'b.drift.amount.p',
+         ref_ovl = TRUE)
+
+# 
+# MCMCplot(myfit_samples, 
+#          params = 'drift.pr.p',
+#          ref_ovl = TRUE)
+# 
+MCMCplot(myfit_samples,
+      params = 'k.p',
+      ref_ovl = TRUE)
+# MCMCplot(myfit_samples, 
+#          params = 'w.p',
+#          ref_ovl = TRUE)
+
 print(sort(rhat, decreasing = T)[1:20])
   
 #dic.fit = dic.samples(as.jags(myfit)) #
@@ -54,10 +83,14 @@ print(sort(rhat, decreasing = T)[1:20])
 ```
 
 
-```{r}
+```{r, fig.width = 20}
 # Load previous fits
-load('results/attributewise_simple_ddm-18-04-2021_20:18-10000-1e+05.RData') # deviance ~ 3200
-#load('results/attributewise_exponential_ddm-12-04-2021_20:13-10000-2e+06.RData') # deviance ~ 3100  
+load('results/value_diff_simple_ddm-  15-07-2021_04:28-10000-3e+05.RData') #06-07-2021_05:02-10000-3e+05.RData')
+#load('results/value_diff_simple_ddm-15-07-2021_02:08-10000-2e+05.RData') 
+#load('results/dd_hyperbolic_simple_ddm-15-07-2021_06:55-10000-3e+05.RData')
+#load('results/dd_hyperbolic_simple_ddm-15-07-2021_06:55-10000-3e+05.RData')
+#load('results/dd_hyperbolic_simple_ddm-15-07-2021_07:56-10000-3e+05-calibrate.RData')
+#load('results/dd_hyperbolic_calibration_ddm-16-07-2021_16:10-10000-3e+05-calibrate.RData')
 
 chain1 = as.matrix(coda_samples[[1]])
 chain2 = as.matrix(coda_samples[[2]])
@@ -70,10 +103,14 @@ chaincolor = c(rep('red', nsamp), rep('blue', nsamp), rep('green', nsamp), rep('
 #plot(chain[, 'gamma.mu'], chain[, 'b.drift.amount.pr'], col = chaincolor, cex = 0.1, pch = 20)
 
 #pars = monitor[ c(grep('\\.mu', monitor), grep('\\.pr$', monitor), grep('\\.kappa', monitor))] 
-pairs(chain[, pars[-c(11, 12, 13)] ], col = chaincolor, pch = 20, cex = 0.1)
+pairs(chain[, pars[-c(length(pars))] ], col = chaincolor, pch = 20, cex = 0.1)
+cc = cor(chain[, pars[-c(length(pars))] ])
+View(cc)
 #pairs(chain[, pars] , col = chaincolor, pch = 20, cex = 0.1)
 
-ics.linear = check_model(myfit, myfit_rjags, myfit_samples)
+
+ics.value = check_model(myfit, myfit_rjags, myfit_samples)
+#ics.linear = check_model(myfit, myfit_rjags, myfit_samples)
 #ics.nl = check_model(myfit.nl)
 #ics.nl2 = check_model(myfit.nl2)
 

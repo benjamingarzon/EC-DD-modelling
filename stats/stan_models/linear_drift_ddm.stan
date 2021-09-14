@@ -4,10 +4,7 @@ data {
   vector<lower=0>[M] RT;                // reaction time  
   vector<lower=0>[N] minRT;             // minimum RT for each subject of the observed data 
   real RTbound;                         // lower bound or RT across all subjects (e.g., 0.1 second)
-  vector<lower=0>[M] delay_later;
-  vector<lower=0>[M] amount_later;
-  vector<lower=0>[M] delay_sooner;
-  vector<lower=0>[M] amount_sooner;
+  vector[M] amount_later_centered;
   int<lower=0, upper=1> choice[M];      // 0 for instant reward, 1 for delayed reward
   int<lower=0> instance[M];             // instance number (group, subject...)
   
@@ -16,8 +13,8 @@ data {
 parameters {
   
   // Hyper(group)-parameters  
-  vector[5] mu_p;  
-  vector<lower=0>[5] sigma_p;
+  vector[4] mu_p;  
+  vector<lower=0>[4] sigma_p;
   
   // for slopes
   real mu_slope_p;  
@@ -26,28 +23,19 @@ parameters {
   // Subject-level raw parameters (for Matt trick)
   vector[N] boundary_pr;
   vector[N] bias_pr;
-  vector[N] drift_pr;
+  vector[N] drift_intercept_pr;
   vector[N] nondectime_pr;
   vector[N] drift_slope_pr;
-  vector[N] w_pr;
-  
 }
 transformed parameters {
   // Transform subject-level raw parameters
-  vector<lower=0>[M] boundary; // boundary separation
-  vector<lower=0,upper=1>[M] bias;  // initial bias
+  vector<lower=0, upper=10>[M] boundary; // boundary separation
+  vector<lower=0, upper=1>[M] bias;  // initial bias
   vector[M] drift; // drift rate
   vector<lower=RTbound, upper=max(minRT)>[M] nondectime; // nondecision time
   
-  vector<lower=0,upper=1>[N] w;
-
-  vector[M] ev;
-
-  w = Phi_approx( mu_p[5] + sigma_p[5]*w_pr );
-  ev = w[instance] .* amount_later - amount_sooner;
-
-  boundary = exp( mu_p[1] + sigma_p[1] * boundary_pr[instance]);   
-  drift = mu_p[2] + sigma_p[2] * drift_pr[instance] + (mu_slope_p + sigma_slope_p * drift_slope_pr[instance]).* ev;
+  boundary = Phi_approx(mu_p[1] + sigma_p[1] * boundary_pr[instance])*10;   
+  drift = mu_p[2] + sigma_p[2] * drift_intercept_pr[instance] + (mu_slope_p + sigma_slope_p * drift_slope_pr[instance]).* amount_later_centered;
   bias = Phi_approx( mu_p[3] + sigma_p[3] * bias_pr[instance]); 
   nondectime =  RTbound + (minRT[instance]-RTbound) .* Phi_approx( mu_p[4] + sigma_p[4] * nondectime_pr[instance]);
 
@@ -63,10 +51,9 @@ model {
   // Individual parameters for non-centered parameterization
   boundary_pr ~ normal(0, 1);
   bias_pr  ~ normal(0, 1);
-  drift_pr ~ normal(0, 1);
+  drift_intercept_pr ~ normal(0, 1);
   nondectime_pr ~ normal(0, 1);
   drift_slope_pr ~ normal(0, 1);
-  w_pr ~ normal(0, 1);
 
   // Loop across observations
   for (j in 1:M) {
@@ -86,8 +73,8 @@ generated quantities {
   vector[N] nondectime_gen;
   real log_lik[N];
   
-  boundary_gen = exp(mu_p[1] + sigma_p[1] * boundary_pr);
-  drift_intercept_gen = mu_p[2] + sigma_p[2] * drift_pr;
+  boundary_gen = Phi_approx(mu_p[1] + sigma_p[1] * boundary_pr)*10;
+  drift_intercept_gen = mu_p[2] + sigma_p[2] * drift_intercept_pr;
   drift_slope_gen = (mu_slope_p + sigma_slope_p * drift_slope_pr);
   bias_gen = Phi_approx( mu_p[3] + sigma_p[3] * bias_pr); 
   nondectime_gen =  RTbound + (minRT-RTbound) .* Phi_approx( mu_p[4] + sigma_p[4] * nondectime_pr);
@@ -101,6 +88,4 @@ generated quantities {
       else 
         log_lik[instance[j]]  += wiener_lpdf(RT[j]| boundary[j], nondectime[j], 1 - bias[j], -drift[j]);  
     }
-    
-
 }

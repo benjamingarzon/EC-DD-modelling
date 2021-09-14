@@ -12,8 +12,10 @@ WD = '~/Software/EC-DD-Task/data'
 WDD = file.path(WD, 'all')
 theme_set(theme_classic())
 
-MYFILE = 'results/attributewise_simple_ddm-03-04-2021_06:08-10000-4e+05-pars.RData'
-#MYFILE = 'results/attributewise_exponential_ddm-03-04-2021_05:54-10000-4e+05-pars.RData'
+#MYFILE = 'results/dd_hyperbolic_simple_ddm-24-06-2021_18:53-10000-1e+05-pars.RData'
+MYFILE = 'results/value_diff_simple_ddm-15-07-2021_02:08-10000-2e+05-pars.RData'
+MYFILE = 'results/value_diff_simple_ddm-15-07-2021_04:28-10000-3e+05-pars.RData'
+#MYFILE = 'results/dd_hyperbolic_simple_ddm-01-07-2021_12:56-10000-310000-calibrate-pars.RData'
 # Load previous fit
 load(MYFILE)
 
@@ -38,31 +40,34 @@ allIndPars <- as.data.frame(allIndPars)
 
 for (i in 1:numSubjs) {
   allIndPars[i, ] <- c( 
-  mean(parVals$b.drift.delay.p[i, ]), 
+#  mean(parVals$b.drift.delay.p[i, ]), 
+  mean(parVals$b.drift.intercept.p[i, ]), 
   mean(parVals$b.drift.amount.p[i, ]), 
   mean(parVals$bias.p[i, ]), 
   mean(parVals$nondectime.p[i, ]), 
-  mean(parVals$noise.p[i, ])#,
-#  mean(parVals$gamma.p[i, ]) 
-#  mean(parVals$time.p[i, ]) 
+  mean(parVals$noise.p[i, ])
+#  mean(parVals$w.p[i, ])#,
+#   mean(parVals$k.p[i, ])#,
   )
 }
 
 allIndPars = cbind(allIndPars, subjList[-6]) 
 
 colnames(allIndPars) <- c(
-"b.drift.delay.p", 
+#"b.drift.delay.p", 
+"b.drift.intercept.p", 
 "b.drift.amount.p", 
 "bias.p", 
 "nondectime.p", 
 "noise.p", 
-#"gamma.p", 
-#"time.p",
+#"k.p",
+#"w.p",
 "subjID", "context", "context_num", "context_order", "background_col")
 colors = c("red", "blue", "green")
 names(colors) = c("c1", "c2", "c3")
+allIndPars = allIndPars %>% mutate(factor = 0.5*(scale(b.drift.intercept.p) - scale(b.drift.amount.p)))
 pairs(allIndPars[1:numPars], col = colors[allIndPars$context] )
-
+cor(allIndPars[1:numPars])
 ```
 
 
@@ -76,7 +81,7 @@ allIndPars$Median = myfit_summary[g, 'Median']
 print(Rhat)
 #
 
-plot(allIndPars$upper_bound[order(allIndPars$lower_bound)], type = 'l', ylim = c(-2, 4))
+plot(allIndPars$upper_bound[order(allIndPars$lower_bound)], type = 'l', ylim = c(-5, 5))
 lines(allIndPars$lower_bound[order(allIndPars$lower_bound)]  , type = 'l')
 abline(0, 0, col = 'red')
 # NEX = 25                                                                                         
@@ -140,10 +145,10 @@ print(myplot)
 
 for (var in c("context",  "background_col"))
 {
-  get_par("b.drift.delay.p", var)
+  get_par("b.drift.intercept.p", var, c(-9, 2))
   get_par("b.drift.amount.p", var)
   get_par("bias.p", var )
-  get_par("nondectime.p", var)
+  get_par("nondectime.p", var, c(0.3, 1))
   get_par("noise.p", var)
   
 }
@@ -151,12 +156,12 @@ context_sigmas = c(5, 2, 1)
 
 allIndPars$context_sigma = context_sigmas[allIndPars$context_num]
 
-mypars = c("b.drift.delay.p", "b.drift.amount.p", "bias.p", "nondectime.p", "noise.p") #, "gamma.p")
+mypars = c("b.drift.intercept.p", "b.drift.amount.p", "bias.p", "nondectime.p", "noise.p", "factor" ) #, "k.p") #, "w.p", "k.p") #, "gamma.p")
 
 for (mypar in mypars){
   print("------------------------------------")
   print(mypar)
-  myform = formula(paste(mypar, "context + context_order + background_col + (1|subjID)", sep = "~"))
+  myform = formula(paste(mypar, "context + context_order+ (1|subjID)", sep = "~")) # + background_col 
   model = lmer(myform, data = allIndPars.sub ) #%>% filter(context_order < 3))
   print(summary(model))
   myplot = ggplot(allIndPars.sub, aes_string( x = "context", y = mypar, fill = "context")) + geom_violin() + geom_point() + theme(legend.position = "none")
@@ -173,6 +178,14 @@ with(allIndPars.sub, print(table(paste(context, context_order))))
 print(ggplot(allIndPars, aes(x = context)) + geom_bar() + facet_grid( .~ context_order ))
 with(allIndPars, print(table(paste(context, context_order))))
 
+allIndPars.c1 = allIndPars.sub%>% filter(context == 'c1') 
+allIndPars.c2 = allIndPars.sub%>% filter(context == 'c2') 
+allIndPars.c3 = allIndPars.sub%>% filter(context == 'c3')
+
+x = allIndPars.c3$b.drift.intercept.p - allIndPars.c1$b.drift.intercept.p  
+y = allIndPars.c3$b.drift.amount.p - allIndPars.c1$b.drift.amount.p  
+plot(x, y)
+cor.test(x, y)
 ```
 
 # Plot RTs in relation to estimated subjective value
@@ -212,7 +225,8 @@ model = lmer(log(rt) ~ context_order + context_num*ev + (1|subjID), data = choic
 ratingdata = merge(ratingdata.sub, allIndPars , by = c('subjID', 'context', 'context_num', 'context_order', 'background_col'))
 #ratingdata = subset(ratingdata, subjID %in% include_subjects)
 #ratingdata = ratingdata %>% mutate( drift = amount_later/(1 + k*delay_later), bid.diff = (bid.high - bid.low)) %>% mutate(drift2 = drift^2)
-ratingdata = ratingdata %>% mutate( drift = b.drift.amount.p * (amount_later  - 1) + b.drift.delay.p * (delay_later - 0), bid.diff = (bid.high - bid.low)) %>% mutate(drift2 = drift^2)
+#  - 1) + b.drift.delay.p * (delay_later - 0)
+ratingdata = ratingdata %>% mutate( drift = b.drift.intercept.p + b.drift.amount.p * amount_later, bid.diff = (bid.high - bid.low)) %>% mutate(drift2 = drift^2)
 #ratingdata = ratingdata %>% mutate( ev = amount_later, bid.diff = (bid.high - bid.low)) %>% mutate(ev2 = ev^2)
 
 myplot = ggplot(data = ratingdata, aes(x = amount_later, y = bid.diff, color = context, group = subjID)) +

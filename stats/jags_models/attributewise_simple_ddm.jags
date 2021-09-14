@@ -10,13 +10,11 @@ model {
         
    	# Means for DDM parameters
         noise.mu      ~ dunif(0.001, 2)
-        #noise.mu ~ dnorm(0, 1)T(0.001, 2) 
         nondectime.mu ~ dunif(0, 10)
-        #nondectime.mu ~ dnorm(0, 1)T(0.001, 5) 
-        
+
   	# Precision for DDM parameters
         noise.pr ~ dgamma(1, 0.1)
-        nondectime.pr ~ dgamma(1, 1)
+        nondectime.pr ~ dgamma(1, 1) # ? precision = 0.1
 
     # Error term for the drift
         e.sG <- pow(e.m,2) / pow(e.d,2)
@@ -36,7 +34,7 @@ model {
         b.drift.delay.p[p] ~ dnorm(b.drift.delay.mu, b.drift.delay.pr)
         b.drift.amount.p[p] ~ dnorm(b.drift.amount.mu, b.drift.amount.pr)
         noise.p[p] ~ dnorm(noise.mu, noise.pr)
-        nondectime.p[p] ~ dnorm(nondectime.mu, nondectime.pr) #T(0.001, 10)
+        nondectime.p[p] ~ dnorm(nondectime.mu, nondectime.pr) 
         drift.pr.p[p] ~ dgamma(e.sG, e.rG)T(0.001,20)
         bias.p[p] ~ dbeta(bias.alpha, bias.beta)T(0.01,0.99)
 
