@@ -180,3 +180,33 @@ summarySE <- function(data=NULL, measurevar, groupvars=NULL, na.rm=FALSE,
   
   return(datac)
 }
+
+########################################################################################################
+# organize data to fit model
+########################################################################################################
+
+check_stan_model = function(myfit) {
+  print(traceplot(myfit, pars = c("mu_p", "sigma_p", "mu_slope_p", "sigma_slope_p"), inc_warmup = T))
+  print(traceplot(myfit, pars = c("mu_p", "sigma_p", "mu_slope_p", "sigma_slope_p"), inc_warmup = F))
+  print(pairs(myfit, pars = c("mu_p", "sigma_p")))
+  print(pairs(myfit, pars = c("mu_p", "sigma_p", "mu_slope_p", "sigma_slope_p")))
+  print(plot(myfit, pars = c("mu_p", "mu_slope_p")))
+  print(plot(myfit, pars = c("drift_intercept_gen")))
+  print(plot(myfit, pars = c("drift_slope_gen")))
+  print(plot(myfit, pars = c("nondectime_gen")))
+  print(plot(myfit, pars = c("boundary_gen")))
+  samples = extract(myfit)
+  cc = cor(cbind(samples$mu_p, samples$sigma_p, samples$mu_slope_p, samples$sigma_slope_p))
+  print(cc)
+  rhat = summary(myfit)$summary[, "Rhat"]
+  n_eff = summary(myfit)$summary[, "n_eff"]
+  print(sort(rhat[1:10], decreasing = T))
+  print(range(rhat))
+  print(sort(n_eff[1:10]))
+  loo.fit = loo(myfit)
+  waic.fit = 0 # waic(myfit)
+  ics = c(loo.fit, waic.fit)
+  names(ics) = c('loo', 'waic')
+  return(ics)
+}
+

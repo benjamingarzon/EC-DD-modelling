@@ -1,19 +1,15 @@
 
 ## Extract parameters
-# undiscounted model: differences only in nondecision times, 21 subjects pass the max(lower) test, nice fits Rhat < 1.02
-# hyperbolic model: differences
-# value difference model (w): differences in nondecision times, marginal effects in drift_intercept, 
-#19 subject pass max(lower) test, nice fits Rhat < 1.02, correlation between w and drift_intercept/drift_slope , 
 
 ```{r}
 rm(list = ls())
 library(rstan)
 library(lme4)
 library(lmerTest)
-source("./analysis_funcs.R")
+source("../analysis_funcs.R")
 
-WD = '~/Software/EC-DD-Task/data'
-WDD = file.path(WD, 'experiment2')
+WD = '../../data'
+WDD = file.path(WD, 'experiment')
 theme_set(theme_classic())
 
 #########
@@ -25,7 +21,6 @@ subjList <- unique(choicedata.common[c('subjID', 'context', 'context_num', 'cont
 ##########
 
 # Load previous fit
-#load('results/linear_drift_ddm29-08-2021_03:58-10000-stan-pars.RData')
 load('results/linear_drift_ddm03-09-2021_06:02-11000-stan-pars.RData')
 
 numSubjs = dataList$N
@@ -233,7 +228,7 @@ ratingdata.sub.clean = subset(ratingdata.sub, bid.diff.outlier == F & bid.rt.out
 
 ratingdata = merge(ratingdata.sub.clean, allIndPars %>% filter(subjID %in% include_subjects), by = c('subjID', 'context', 'context_num', 'context_order', 'background_col'))
 ratindata = subset(ratingdata, subjID %in% include_subjects)
-ratingdata = ratingdata %>% mutate( ev = amount_later_centered, bid.diff = (bid.high - bid.low)) %>% mutate(ev2 = ev^2)
+ratingdata = ratingdata %>% mutate( ev = amount_later_centered, bid.diff = (bid.high - bid.low )) %>% mutate(ev2 = ev^2)
 
 myplot = ggplot(data = ratingdata, aes(x = ev, y = bid.diff, color = context, group = subjID)) +
   geom_line() + 
@@ -251,19 +246,20 @@ myplot = ggplot(data = ratingdata.group, aes(x = ev, y = bid.diff.mean, ymin = b
   geom_point() + 
   geom_errorbar() + 
   xlab('Subjective value of delayed reward') + 
+#  ylab('Upper limit')
   ylab('Price range')
 
 print(myplot)
 
-model = lmer(bid.diff ~ context + context_order + (1 + amount_later_centered | subjID), 
+model = lmer(bid.diff ~ context*amount_later_centered + context_order + (1 + amount_later_centered | subjID), 
              data = ratingdata )
 print(summary(model))
 
-model = lmer(bid.high ~ context + context_order + (1 + amount_later_centered | subjID), 
+model = lmer(bid.high ~ context*amount_later_centered + context_order + (1 + amount_later_centered | subjID), 
              data = ratingdata)
 print(summary(model))
 
-model = lmer(bid.low ~ context + context_order + (1 + amount_later_centered | subjID), 
+model = lmer(bid.low ~ context*amount_later_centered + context_order + (1 + amount_later_centered | subjID), 
              data = ratingdata)
 print(summary(model))
 ```
@@ -277,6 +273,7 @@ for (mypar in mypars.rt){
   print(mypar)
   myform = formula(paste(paste0('log(', mypar, ')'), "context*amount_later_centered + context_order + (1 + amount_later_centered| subjID)", sep = "~"))
   model.rt = lmer(myform, data = ratingdata) 
+  print(myform)
   print(summary(model.rt))
 }
 

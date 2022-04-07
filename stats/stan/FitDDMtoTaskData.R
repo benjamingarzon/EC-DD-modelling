@@ -9,15 +9,18 @@ library(rstan)
 library(RWiener)
 rstan_options(auto_write = TRUE)
 options(mc.cores = parallel::detectCores())
-source('./funcs.R')
-WD = '~/Software/EC-DD-Task/data'
-WDD = file.path(WD, 'experiment2')
+print(getwd())
+
+source('../analysis_funcs.R')
+WD = '../../data'
+WDD = file.path(WD, 'experiment')
 
 ######################################################################
 # Arguments
 ######################################################################
 
 if(F){
+  # for tests
   INPUT_FILE = 'processed_data_censored.RData'
   MODEL_NAME = 'linear_nobias_drift_ddm'
   NITER = 600
@@ -29,7 +32,7 @@ if(F){
   NITER = as.numeric(args[3])
   NWARMUP = NITER - 1000
 }  
-MODEL_FILE = file.path('stan_models', paste(MODEL_NAME, 'stan', sep = '.'))
+MODEL_FILE = file.path('models', paste(MODEL_NAME, 'stan', sep = '.'))
 
 ######################################################################
 # Load and prepare data
@@ -46,25 +49,6 @@ dataList$amount_later_centered = dataList$amount_later - 5
 # Generate initial values
 ######################################################################
 # This initialization will facilitate the sampling
-if (MODEL_NAME == 'undiscounted_value_diff_ddm')
-  genInitList = function() {
-    list(
-      mu_p     =  c(0, -3, 0, 0),
-      sigma_p    = c(0.5, 1, 0.5, 0.5),
-      mu_slope_p     = 0,
-      sigma_slope_p    = 0.5
-    )
-  }
-
-if (MODEL_NAME == 'value_diff_ddm')
-  genInitList = function() {
-    list(
-      mu_p     =  c(0, 5, 0, 1, 0),
-      sigma_p    = c(0.5, 0.1, 0.5, 0.5, 1),
-      mu_slope_p     = 0,
-      sigma_slope_p    = 0.5
-    )
-  }
 
 if (MODEL_NAME == 'linear_drift_ddm')
   genInitList = function() {
@@ -82,35 +66,6 @@ if (MODEL_NAME == 'linear_nobias_drift_ddm')
       mu_p     =  c(-1, 0, 1) + rnorm(3, 0, 0.05),
       sigma_p    = c(0.5, 2, 0.5),
       mu_slope_p     = 0 + rnorm(1, 0, 0.05),
-      sigma_slope_p    = 0.5
-    )
-  }
-if (MODEL_NAME == 'dd_hyperbolic_ddm')
-genInitList = function() {
-  list(
-    mu_p     =  c(0.8, -4, 0, 1, -5),
-    sigma_p    = c(0.2, 4, 0.1, 0.2, 5),
-    mu_slope_p     = 0,
-    sigma_slope_p    = 0.5
-  )
-}
-
-if (MODEL_NAME == 'dd_hyperbolic_nl_ddm'  )
-  genInitList = function() {
-    list(
-      mu_p     =  c(0.8, 0, 0, 1, -2.5, -5),
-      sigma_p    = c(0.2, 0.3, 0.15, 0.2, 0.5, 2),
-      mu_slope_p     = 0,
-      sigma_slope_p    = 0.5
-    )
-  }
-
-if (MODEL_NAME == 'dd_hyperbolic_nl2_ddm')
-  genInitList = function() {
-    list(
-      mu_p     =  c(0, -3, 0, 0, -7, 4, 0),
-      sigma_p    = c(0.5, 3, 0.5, 0.5, 3, 0.1, 0.1),
-      mu_slope_p     = 0,
       sigma_slope_p    = 0.5
     )
   }
@@ -147,7 +102,7 @@ myfit <- stan(
 ######################################################################
 datetime = format(Sys.time(), '%d-%m-%Y_%H:%M')
 save(myfit, file = paste0(
-  'results/',
+  '../results/',
   MODEL_NAME,
   datetime, 
   '-', 
@@ -162,19 +117,6 @@ myfit_summary = summary(myfit, probs = c(0.025, 0.05, 0.25, 0.5, 0.75, 0.95, 0.9
 # Generate samples for posterior predictive checks
 ######################################################################
 NSAMPLES = 1000
-
-# RT.new = NULL
-# for (j in 1:M) {
-#   if (dataList$choice[j] > 0)
-#     RT[j] = wiener(boundary[j], nondectime[j], bias[j], drift[j]); 
-#   else 
-#     RT[j] = wiener(boundary[j], nondectime[j], 1 - bias[j], -drift[j]);
-# }
-
-#rwiener(NSAMPLES, boundary[j], nondectime[j], bias[j], drift[j])
-#  tmp$subjID <- rep(s, n_per_condition)
-#  as.data.frame(tmp)
-#}
 
 save(parVals,
      myfit_summary,
