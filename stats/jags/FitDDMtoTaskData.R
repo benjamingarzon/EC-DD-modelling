@@ -133,6 +133,7 @@ inits4 <- list( boundary.mu = 2, # + rnorm(1, 0, priorsd),
               "b.drift.amount.mu", "b.drift.amount.sd", "b.drift.amount.p", 
               "nondectime.mu", "nondectime.sd", "nondectime.p", 
               "boundary.mu","boundary.sd", "boundary.p", 
+              "noise.mu","noise.pr", "noise.p", 
               "bias.mu", "bias.sd", "bias.p",
               "deviance")
 
