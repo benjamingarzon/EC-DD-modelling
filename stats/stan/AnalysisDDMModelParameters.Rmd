@@ -1,5 +1,5 @@
 
-## Extract parameters
+# Extract parameters and perform tests
 
 ```{r}
 rm(list = ls())
@@ -21,14 +21,14 @@ subjList <- unique(choicedata.common[c('subjID', 'context', 'context_num', 'cont
 
 # Load previous fit
 load('../results/linear_drift_ddm03-09-2021_06:02-11000-stan-pars.RData')
-
 numSubjs = dataList$N
 
 ```
 
+## Get posterior means
 
 ```{r}
-## Extract parameters
+
 numPars <- 5
 
 # Individual parameters (e.g., individual posterior means)
@@ -58,7 +58,7 @@ colnames(allIndPars) <- c(
 
 ```
 
-
+## Remove subjects if they have low sensitivity
 ```{r}
 
 Rhat = max(myfit_summary[, 'Rhat'])
@@ -114,15 +114,8 @@ meandrift = colMeans(parVals$drift)
 boxplot(meandrift ~ dataList$choice)
 plot(meandrift ~ dataList$amount_later_centered)
 
-#meanev = colMeans(parVals$ev)
-
-#mydata = data.frame(instance = dataList$instance,  drift = meandrift, ev = meanev)
-#mydata$subjID = unlist(subjList[mydata$instance, 1])
-#mydata$context = unlist(subjList[mydata$instance, 2])
-  
-#myplot = ggplot(mydata, aes( x= ev, y = drift, color = subjID)) + geom_point(size = 1) + facet_grid(.~context ) + theme(legend.position = "none")
-#print(myplot)
 ```
+## Group distributions for parameters
 
 ```{r}
 
@@ -153,7 +146,7 @@ for (mypar in mypars){
 
 ```
 
-# Plot RTs in relation to estimated subjective value
+## Plot RTs in relation to estimated subjective value
 ```{r}
 breaks = seq(0.5, 8.5, 1)
 choicedata = merge(choicedata.common, allIndPars %>% filter(subjID %in% include_subjects), by = c('subjID', 'context', 'context_order', 'background_col'))
@@ -189,7 +182,7 @@ model = lmer(log(rt) ~ context*amount_later_centered  + context_order + (1+ amou
 print(summary(model))
 plot(model)
 ```
-# Check probabilities
+## Check probabilities
 
 ```{r}
 myplot = ggplot(data = choicedata.group, aes(x = ev, y = prob_late.mean, ymin = prob_late.mean - prob_late.sem, 
@@ -207,7 +200,7 @@ plot(model)
 ```
 
 
-# Plot ratings in relation to estimated subjective value
+## Plot ratings in relation to estimated subjective value
 ```{r}
 ratingdata.sub$bid.diff = ratingdata.sub$bid.high - ratingdata.sub$bid.low
 
@@ -262,7 +255,7 @@ model = lmer(bid.low ~ context*amount_later_centered + context_order + (1 + amou
              data = ratingdata)
 print(summary(model))
 ```
-# Rating RT
+## Rating RT
 ```{r}
 mypars.rt = c('key.rt', 'bid.rt.max', 'bid.rt.min', 
            'bid.rt.second', 'bid.rt.first')
@@ -284,7 +277,7 @@ print(myplot)
 ```
 
 
-# Check stability of parameters
+## Check stability of parameters
 
 ```{r, fig.width = 15}
 
@@ -333,7 +326,7 @@ ggplot(allIndPars.sum, aes(x=parameter, y=value.corr)) +
 
 ```
 
-# Check correlation between parameters
+## Check correlation between parameters
 
 ```{r, fig.width = 15}
 
