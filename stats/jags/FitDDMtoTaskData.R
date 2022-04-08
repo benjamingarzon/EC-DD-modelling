@@ -1,6 +1,5 @@
 # Fit DDM model to task data
 rm(list = ls())
-setwd("~/Software/EC-DD-Task/stats")
 
 ######################################################################
 # Definitions
@@ -11,17 +10,18 @@ library(coda)
 library(rjags)
 library(MCMCvis)
 
-source('./funcs.R')
-WD = '~/Software/EC-DD-Task/data'
-WDD = file.path(WD, 'experiment2')
+source('../analysis_funcs.R')
+WD = '../../data'
+WDD = file.path(WD, 'experiment')
 
 ######################################################################
 # Arguments
 ######################################################################
 if(T){
+  # tests
   INPUT_FILE = 'processed_data_censored.RData'
 #  INPUT_FILE = 'processed_data.RData'
-  MODEL_NAME = 'linear_drift_ddm3' 
+  MODEL_NAME = 'linear_drift_noise_ddm' 
   NSAMPLES = 500
   NBURNIN = 1000
   INCLUDED_SUB = '' #results/included_subjects.txt'
@@ -36,7 +36,7 @@ if(T){
   INCLUDED_SUB = args[6] 
 }  
 
-MODEL_FILE = file.path('jags_models', paste(MODEL_NAME, 'jags', sep = '.'))
+MODEL_FILE = file.path('models', paste(MODEL_NAME, 'jags', sep = '.'))
 
 ######################################################################
 # Load and prepare data
@@ -97,13 +97,15 @@ dataList$nocalibration_indices = which(dataList$iscalibration == 0)
   # This initialization will facilitate the sampling
 priorsd = 0.001
 inits1 <- list( boundary.mu = 2, # + rnorm(1, 0, priorsd), 
-                  bias.mu = 0.5,# + rnorm(1, 0, priorsd),
-                  b.drift.intercept.mu = 0, # + rnorm(1, 0, priorsd),
-                  b.drift.amount.mu = 0, #+ rnorm(1, 0, priorsd),
-                  nondectime.mu = 1, # + rnorm(1, 0, priorsd),
-                  .RNG.name="base::Super-Duper", .RNG.seed=9999)
+                noise.mu = 0.5, 
+                bias.mu = 0.5,# + rnorm(1, 0, priorsd),
+                b.drift.intercept.mu = 0, # + rnorm(1, 0, priorsd),
+                b.drift.amount.mu = 0, #+ rnorm(1, 0, priorsd),
+                nondectime.mu = 1, # + rnorm(1, 0, priorsd),
+                .RNG.name="base::Super-Duper", .RNG.seed=9999)
 
 inits2 <- list( boundary.mu = 2, # + rnorm(1, 0, priorsd), 
+                noise.mu = 0.7, 
                 bias.mu = 0.5, # + rnorm(1, 0, priorsd),
                 b.drift.intercept.mu = 0, # + rnorm(1, 0, priorsd),
                 b.drift.amount.mu = 0, # + rnorm(1, 0, priorsd),
@@ -111,6 +113,7 @@ inits2 <- list( boundary.mu = 2, # + rnorm(1, 0, priorsd),
                 .RNG.name="base::Wichmann-Hill", .RNG.seed=1234)
 
 inits3 <- list( boundary.mu = 2, # + rnorm(1, 0, priorsd), 
+                noise.mu = 1.5, 
                 bias.mu = 0.5, # + rnorm(1, 0, priorsd),
                 b.drift.intercept.mu = 0, # + rnorm(1, 0, priorsd),
                 b.drift.amount.mu = 0, # + rnorm(1, 0, priorsd),
@@ -118,6 +121,7 @@ inits3 <- list( boundary.mu = 2, # + rnorm(1, 0, priorsd),
                 .RNG.name="base::Mersenne-Twister", .RNG.seed=77 )
   
 inits4 <- list( boundary.mu = 2, # + rnorm(1, 0, priorsd), 
+                noise.mu = 1.3, 
                 bias.mu = 0.5, # + rnorm(1, 0, priorsd),
                 b.drift.intercept.mu = 0, # + rnorm(1, 0, priorsd),
                 b.drift.amount.mu = 0, # + rnorm(1, 0, priorsd),
@@ -175,7 +179,7 @@ coda_samples = as.mcmc.list(myfit)
 
 save(myfit, myfit_rjags, monitor, myfit_samples, coda_samples, #dic.fit, 
      file = paste0(
-       'results/',
+       '../results/',
        MODEL_NAME,
        '-', 
        datetime, 
@@ -217,7 +221,7 @@ save(parVals,
   dataList,
   subjList,
   file = paste0(
-    'results/',
+    '../results/',
     MODEL_NAME,
     '-', 
     datetime,

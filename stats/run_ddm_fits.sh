@@ -9,6 +9,6 @@ cd stan
 cd ../jags
 NSAMPLES=10000
 NBURNIN=100000
-#Rscript jags/FitDDMtoTaskData.R processed_data_censored.RData linear_drift_ddm $NSAMPLES $NBURNIN > ../logs/log-linear_drift_ddm-${NSAMPLES}-${NBURNIN}.txt nocalib ""&
+Rscript jags/FitDDMtoTaskData.R processed_data_censored.RData linear_drift_noise_ddm $NSAMPLES $NBURNIN > ../logs/log-linear_drift_ddm-${NSAMPLES}-${NBURNIN}.txt nocalib ""&
 
 

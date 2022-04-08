@@ -1,3 +1,4 @@
+
 model {
     # Drift
         b.drift.intercept.mu ~ dnorm(0, 3)
@@ -5,9 +6,9 @@ model {
         b.drift.intercept.sd ~ dgamma(1, 0.5)
         b.drift.amount.sd ~ dgamma(1, 0.5)
 
-   	# Boundary
-        boundary.mu ~ dnorm(2, pow(1,-2))T(0.1, 10)
-        boundary.sd ~ dgamma(1,1)
+   	# Noise
+        noise.mu ~ dunif(0.001, 2)
+        noise.pr ~ dgamma(1, 0.1)
         
    	# Non-decision time
         nondectime.mu ~ dnorm(.5, pow(.25,-2))T(0.01, 5)
@@ -21,7 +22,7 @@ model {
 
         b.drift.intercept.p[p] ~ dnorm(b.drift.intercept.mu, pow(b.drift.intercept.sd,-2))
         b.drift.amount.p[p] ~ dnorm(b.drift.amount.mu, pow(b.drift.amount.sd,-2))
-        boundary.p[p] ~ dnorm(boundary.mu, pow(boundary.sd,-2))T(0.1, 10)
+        noise.p[p] ~ dnorm(noise.mu, noise.pr)
         nondectime.p[p] ~ dnorm(nondectime.mu, pow(nondectime.sd,-2))T(0.01, 5)
         bias.p[p] ~ dnorm(bias.mu, pow(bias.sd,-2))T(0, 1)
 
@@ -29,14 +30,14 @@ model {
 
     for (i in 1:M) { # trial level
 
-        RT.signed[i] ~ dwieners(boundary[i], nondectime[i], bias[i], drift[i], 1) 
+        RT.signed[i] ~ dwieners(2, nondectime[i], bias[i], drift[i], noise[i]) 
 
         # generate predictions
-        RT.signed_pred[i] ~ dwieners(boundary[i], nondectime[i], bias[i], drift[i], 1) 
+        #RT.signed_pred[i] ~ dwieners(2, nondectime[i], bias[i], drift[i], noise[i]) 
 
         # generate trial-by-trial parameters
         bias[i] <- bias.p[instance[i]]
-        boundary[i] <- boundary.p[instance[i]]
+        noise[i] <- noise.p[instance[i]]
         nondectime[i] <- nondectime.p[instance[i]]
         drift[i] <- b.drift.intercept.p[instance[i]] + b.drift.amount.p[instance[i]]*amount_later_centered[i] 
 
