@@ -12,16 +12,15 @@ WD = '../../data'
 WDD = file.path(WD, 'experiment')
 theme_set(theme_classic())
 
-#########
+# Load data
 load(file.path(WDD, "processed_data_censored.RData"))
 grouping_var = 'subj_context'
 choicedata.common$subj_context = paste(choicedata.common$subjID, choicedata.common$context)
 dataList = organize_data(choicedata.common, grouping_var, long = T)
 subjList <- unique(choicedata.common[c('subjID', 'context', 'context_num', 'context_order', 'background_col', grouping_var)])  # list of subjects x blocks
-##########
 
 # Load previous fit
-load('results/linear_drift_ddm03-09-2021_06:02-11000-stan-pars.RData')
+load('../results/linear_drift_ddm03-09-2021_06:02-11000-stan-pars.RData')
 
 numSubjs = dataList$N
 
