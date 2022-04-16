@@ -2,35 +2,38 @@
 model {
     # Drift
         b.drift.intercept.mu ~ dnorm(0, 3)
-        b.drift.amount.mu ~ dnorm(0, 2)
         b.drift.intercept.sd ~ dgamma(1, 0.5)
-        b.drift.amount.sd ~ dgamma(1, 0.5)
+
+#        b.drift.amount.mu ~ dnorm(0, 2)
+#        b.drift.amount.sd ~ dgamma(1, 0.5)
 
    	# Noise
         noise.mu ~ dunif(0.001, 2)
         noise.pr ~ dgamma(1, 0.1)
         
    	# Non-decision time
-        nondectime.mu ~ dnorm(.5, pow(.25,-2))T(0.01, 5)
-        nondectime.sd ~ dgamma(.3,1)
+        nondectime.mu ~ dunif(0, 10)
+        nondectime.pr ~ dgamma(1, 0.1)
 
    	# Bias
-        bias.mu ~ dnorm(.5, pow(.25,-2))T(0, 1)
-        bias.sd ~ dgamma(.3,1)
+        bias.mu ~ dbeta(2, 2)T(0.01,0.99)
+        bias.kappa ~ dgamma(1, 0.5)
+        bias.alpha <- bias.mu * bias.kappa
+        bias.beta <- (1 - bias.mu) * bias.kappa
 
     for (p in 1:N) { # subject level
 
         b.drift.intercept.p[p] ~ dnorm(b.drift.intercept.mu, pow(b.drift.intercept.sd,-2))
-        b.drift.amount.p[p] ~ dnorm(b.drift.amount.mu, pow(b.drift.amount.sd,-2))
+#        b.drift.amount.p[p] ~ dnorm(b.drift.amount.mu, pow(b.drift.amount.sd,-2))
         noise.p[p] ~ dnorm(noise.mu, noise.pr)
-        nondectime.p[p] ~ dnorm(nondectime.mu, pow(nondectime.sd,-2))T(0.01, 5)
-        bias.p[p] ~ dnorm(bias.mu, pow(bias.sd,-2))T(0, 1)
+        nondectime.p[p] ~ dnorm(nondectime.mu, nondectime.pr)
+        bias.p[p] ~ dbeta(bias.alpha, bias.beta)T(0.01, 0.99)
 
     }
 
     for (i in 1:M) { # trial level
 
-        RT.signed[i] ~ dwieners(2, nondectime[i], bias[i], drift[i], noise[i]) 
+        RT.signed[i] ~ dwieners(1, nondectime[i], bias[i], drift[i], noise[i]) 
 
         # generate predictions
         #RT.signed_pred[i] ~ dwieners(2, nondectime[i], bias[i], drift[i], noise[i]) 
@@ -39,7 +42,7 @@ model {
         bias[i] <- bias.p[instance[i]]
         noise[i] <- noise.p[instance[i]]
         nondectime[i] <- nondectime.p[instance[i]]
-        drift[i] <- b.drift.intercept.p[instance[i]] + b.drift.amount.p[instance[i]]*amount_later_centered[i] 
+        drift[i] <- b.drift.intercept.p[instance[i]] #+ b.drift.amount.p[instance[i]]*amount_later_centered[i] 
 
     }
 }
