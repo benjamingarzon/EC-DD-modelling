@@ -21,7 +21,7 @@ if (F) {
   # tests
   INPUT_FILE = 'processed_data_censored.RData'
   #  INPUT_FILE = 'processed_data.RData'
-  MODEL_NAME = 'linear_drift_noise_ddm_test'
+  MODEL_NAME = 'linear_drift_ddm'
   NSAMPLES = 500
   NBURNIN = 1000
 } else {
@@ -138,18 +138,6 @@ monitor = c(
 NTHIN = 10
 NCHAINS = 4
 NFINALSAMPLES = min(1000, NSAMPLES)
-mycolumns = c(
-  'N',
-  'M',
-  'RT.signed',
-  'instance',
-  'RT',
-  'amount_later',
-  'amount_later_centered',
-  'amount_sooner',
-  'delay_later',
-  'choice'
-)
 
 mycolumns = c(
   'N',
@@ -157,10 +145,6 @@ mycolumns = c(
   'RT.signed',
   'instance',
   'amount_later_centered'
-# 'amount_later',
-# 'amount_sooner',
-# 'delay_later',
-# 'choice'
 )
 jags_data = dump.format(dataList[mycolumns])
 
@@ -211,7 +195,7 @@ save(
     NSAMPLES,
     '-',
     NBURNIN,
-    '.RData'
+    '-jags.RData'
   )
 )
 
@@ -252,7 +236,7 @@ save(
     NSAMPLES,
     '-',
     NBURNIN,
-    '-pars.RData'
+    '-jags-pars.RData'
   )
 )
 

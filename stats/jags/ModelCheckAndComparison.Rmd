@@ -15,53 +15,18 @@ WDD = file.path(WD, 'all')
 N_samples = 1000
 
 pars = c("b.drift.intercept.mu", "b.drift.intercept.pr",
-#         "b.drift.amount.mu",  "b.drift.amount.pr", 
+         "b.drift.amount.mu",  "b.drift.amount.pr", 
          "nondectime.mu", "nondectime.pr", 
          "noise.mu","noise.pr", 
          "bias.mu", "bias.kappa", 
          "deviance" )
 
-check_model = function(myfit, myfit_rjags, myfit_samples) {
-  
-myfit.MCMCsummary = MCMCsummary(myfit_samples, round = 2)
-
-rhat = myfit.MCMCsummary$Rhat 
-n.eff = myfit.MCMCsummary$n.eff
-
-# myfit.MCMCpstr = MCMCpstr(myfit_rjags, func = mean,
-#          type = 'summary')
-
-MCMCtrace(myfit_samples, 
-        params = pars,
-        ISB = FALSE,
-        pdf = FALSE)
-
-MCMCplot(myfit_samples, 
-         params = pars[-length(pars)] ,
-         ref_ovl = TRUE)
-
-MCMCplot(myfit_samples, 
-         params = 'b.drift.intercept.p',
-         ref_ovl = TRUE)
-
-#MCMCplot(myfit_samples, 
-#         params = 'b.drift.amount.p',
-#         ref_ovl = TRUE)
-
-# 
-# MCMCplot(myfit_samples, 
-#          params = 'drift.pr.p',
-#          ref_ovl = TRUE)
-# 
-
-print(sort(rhat, decreasing = T)[1:20])
-}  
 ```
 
 
 ```{r, fig.width = 20}
 # Load previous fits
-load('../results/linear_drift_noise_ddm_test-15-04-2022_15:23-10000-20000.RData') 
+load('../results/linear_drift_ddm-17-04-2022_00:29-10000-20000.RData') 
 
 chain1 = as.matrix(coda_samples[[1]])
 chain2 = as.matrix(coda_samples[[2]])
@@ -85,6 +50,7 @@ ics = check_model(myfit, myfit_rjags, myfit_samples)
 ```
 ```{r}
 hist(rgamma(10000, shape = 1, rate = 0.1), 100, xlim = c(0, 50))
+hist(rgamma(10000, shape = 1, rate = 0.2), 100, xlim = c(0, 50))
 hist(rgamma(10000, shape = 1, rate = 0.5), 100, xlim = c(0, 10))
 hist(rgamma(10000, shape = 1, rate = 1), 100, xlim = c(0, 10))
 ```

@@ -182,7 +182,7 @@ summarySE <- function(data=NULL, measurevar, groupvars=NULL, na.rm=FALSE,
 }
 
 ########################################################################################################
-# organize data to fit model
+# check stan chains and posteriors
 ########################################################################################################
 
 check_stan_model = function(myfit) {
@@ -210,3 +210,54 @@ check_stan_model = function(myfit) {
   return(ics)
 }
 
+########################################################################################################
+# check jags chains and posteriors
+########################################################################################################
+
+check_jags_model = function(myfit, myfit_rjags, myfit_samples) {
+  
+  myfit.MCMCsummary = MCMCsummary(myfit_samples, round = 2)
+  
+  rhat = myfit.MCMCsummary$Rhat 
+  n.eff = myfit.MCMCsummary$n.eff
+  
+  # myfit.MCMCpstr = MCMCpstr(myfit_rjags, func = mean,
+  #          type = 'summary')
+  
+  MCMCtrace(myfit_samples, 
+            params = pars,
+            ISB = FALSE,
+            pdf = FALSE)
+  
+  MCMCplot(myfit_samples, 
+           params = pars[-length(pars)] ,
+           ref_ovl = TRUE)
+  
+  MCMCplot(myfit_samples, 
+           params = 'b.drift.intercept.p',
+           ref_ovl = TRUE)
+  
+  MCMCplot(myfit_samples, 
+           params = 'b.drift.amount.p',
+           ref_ovl = TRUE)
+  
+  print(sort(rhat, decreasing = T)[1:20])
+}  
+
+
+########################################################################################################
+# get parameters
+########################################################################################################
+
+
+get_par = function(par, var, ylimit=NULL){
+  mypar = parVals[par] 
+  allIndPars$x = as.factor(unlist(allIndPars[var]))
+  par.melt = melt(mypar, varnames = c("sample", "index"))
+  par.melt = merge(par.melt, allIndPars, by = "index")
+  par.melt = subset(par.melt, subjID %in% include_subjects & x != "NotRecorded")
+  par.melt = par.melt %>% group_by(x, sample, context_order) %>% summarise(value = mean(value)) %>% ungroup() 
+  myplot = ggplot(par.melt, aes(x = x, y = value, fill = x)) + geom_violin() + ggtitle(par) + xlab(var) + labs(fill = var) + facet_grid(. ~ context_order)
+  if(!is.null(ylimit)) myplot = myplot + ylim(ylimit)
+  print(myplot)
+}

@@ -7,26 +7,23 @@ library(rjags)
 library(runjags)
 library(lme4)
 library(lmerTest)
-source("./funcs.R")
-WD = '~/Software/EC-DD-Task/data'
-WDD = file.path(WD, 'all')
+source("../analysis_funcs.R")
+
+WD = '../../data'
+WDD = file.path(WD, 'experiment')
 theme_set(theme_classic())
 
-#MYFILE = 'results/dd_hyperbolic_simple_ddm-24-06-2021_18:53-10000-1e+05-pars.RData'
-MYFILE = 'results/value_diff_simple_ddm-15-07-2021_02:08-10000-2e+05-pars.RData'
-MYFILE = 'results/value_diff_simple_ddm-15-07-2021_04:28-10000-3e+05-pars.RData'
-#MYFILE = 'results/dd_hyperbolic_simple_ddm-01-07-2021_12:56-10000-310000-calibrate-pars.RData'
 # Load previous fit
+MYFILE = '../results/linear_drift_ddm-17-04-2022_00:29-10000-20000-pars.RData'
 load(MYFILE)
+numSubjs = dataList$N
 
-load(file.path(WDD, "processed_data.RData"))
+# Load data
+load(file.path(WDD, "processed_data_censored.RData"))
 grouping_var = 'subj_context'
 choicedata.common$subj_context = paste(choicedata.common$subjID, choicedata.common$context)
 dataList = organize_data(choicedata.common, grouping_var, long = T)
-subjList <- unique(choicedata.common[c('subjID', 'context', 'context_num', 'context_order', 'background_col', grouping_var)])  # list of 
-numSubjs = dataList$N
-
-# rename parameters
+subjList <- unique(choicedata.common[c('subjID', 'context', 'context_num', 'context_order', 'background_col', grouping_var)]) 
 ```
 
 
@@ -40,54 +37,51 @@ allIndPars <- as.data.frame(allIndPars)
 
 for (i in 1:numSubjs) {
   allIndPars[i, ] <- c( 
-#  mean(parVals$b.drift.delay.p[i, ]), 
   mean(parVals$b.drift.intercept.p[i, ]), 
   mean(parVals$b.drift.amount.p[i, ]), 
   mean(parVals$bias.p[i, ]), 
   mean(parVals$nondectime.p[i, ]), 
   mean(parVals$noise.p[i, ])
-#  mean(parVals$w.p[i, ])#,
-#   mean(parVals$k.p[i, ])#,
   )
 }
 
-allIndPars = cbind(allIndPars, subjList[-6]) 
+allIndPars = cbind(allIndPars, subjList[-ncol(subjList)]) 
 
 colnames(allIndPars) <- c(
-#"b.drift.delay.p", 
 "b.drift.intercept.p", 
 "b.drift.amount.p", 
 "bias.p", 
 "nondectime.p", 
 "noise.p", 
-#"k.p",
-#"w.p",
 "subjID", "context", "context_num", "context_order", "background_col")
-colors = c("red", "blue", "green")
-names(colors) = c("c1", "c2", "c3")
-allIndPars = allIndPars %>% mutate(factor = 0.5*(scale(b.drift.intercept.p) - scale(b.drift.amount.p)))
-pairs(allIndPars[1:numPars], col = colors[allIndPars$context] )
-cor(allIndPars[1:numPars])
-```
 
+# colors = c("red", "blue", "green")
+# names(colors) = c("c1", "c2", "c3")
+# allIndPars = allIndPars %>% mutate(factor = 0.5*(scale(b.drift.intercept.p) - scale(b.drift.amount.p)))
+# pairs(allIndPars[1:numPars], col = colors[allIndPars$context] )
+# cor(allIndPars[1:numPars])
+```
+## Remove subjects if they have low sensitivity
 
 ```{r}
 
 Rhat = max(myfit_summary[, 'psrf'])
+print(Rhat)
+
 g = grep( "b.drift.amount.p\\[", rownames(myfit_summary))
 allIndPars$lower_bound = myfit_summary[g, 'Lower95']
 allIndPars$upper_bound = myfit_summary[g, 'Upper95']
 allIndPars$Median = myfit_summary[g, 'Median']
-print(Rhat)
-#
+allIndPars$b.drift.amount.p.0 = allIndPars$lower_bound >0 | allIndPars$upper_bound < 0 
 
-plot(allIndPars$upper_bound[order(allIndPars$lower_bound)], type = 'l', ylim = c(-5, 5))
-lines(allIndPars$lower_bound[order(allIndPars$lower_bound)]  , type = 'l')
+plot(allIndPars$lower_bound[order(allIndPars$lower_bound)], type = 'l', ylim = c(min(allIndPars$lower_bound), max(allIndPars$upper_bound)),
+     xlab = "Subject/Context", ylab = "5%-quantile for drift sensitivity")
+#lines(allIndPars$upper_bound[order(allIndPars$lower_bound)]  , type = 'l')
 abline(0, 0, col = 'red')
+
 # NEX = 25                                                                                         
 # examples = c(which(dataList$instance==3)[1:NEX], which(dataList$instance==5)[1:NEX], which(dataList$instance==7)[1:NEX], which(dataList$instance==9)[1:NEX])
 # print(dataList$choice[examples] )
-# plot(myfit, pars = paste0("boundary[", examples, "]"), collapse = T)
 # plot(myfit, pars =  paste0("bias[", examples, "]"), collapse = T)
 # plot(myfit, pars =  paste0("drift[", examples, "]"), collapse = T)
 # plot(myfit, pars =  paste0("nondectime[", examples, "]"), collapse = T)
@@ -109,22 +103,25 @@ allIndPars$index = seq(nrow(allIndPars))
 allIndPars.subj = allIndPars %>% group_by(subjID) %>% summarise(keep = max(lower_bound) > 0) %>% filter(keep) %>% ungroup()
 include_subjects = allIndPars.subj$subjID
 
-write.table(include_subjects, file = "results/included_subjects.txt", row.names = F, col.names = F)
 allIndPars.sub = subset(allIndPars, subjID %in% include_subjects)
 
-get_par = function(par, var, ylimit=NULL){
-  mypar = parVals[[par]]
-  rownames(mypar) = seq(nrow(mypar))
-  allIndPars$x = as.factor(unlist(allIndPars[[var]]))
-  par.melt = melt(mypar, varnames = c("index", "sample"))
-  par.melt = merge(par.melt, allIndPars, by = "index", suffixes = c('par', ''))
-  par.melt = subset(par.melt, subjID %in% include_subjects)
-  par.melt = par.melt %>% group_by(x, sample, context_order) %>% summarise(value = mean(value)) %>% ungroup() %>% filter(x != "NotRecorded")
-  myplot = ggplot(par.melt, # %>% filter(context_order <3), 
-                  aes(x = x, y = value, fill = x)) + geom_violin() + ggtitle(par) + xlab(var) + labs(fill = var) # + facet_grid( . ~ context_order)
-  if(!is.null(ylimit)) myplot = myplot + ylim(ylimit)
-  print(myplot)
-}
+# get_par = function(par, var, ylimit=NULL){
+#   mypar = parVals[[par]]
+#   rownames(mypar) = seq(nrow(mypar))
+#   allIndPars$x = as.factor(unlist(allIndPars[[var]]))
+#   par.melt = melt(mypar, varnames = c("index", "sample"))
+#   par.melt = merge(par.melt, allIndPars, by = "index", suffixes = c('par', ''))
+#   par.melt = subset(par.melt, subjID %in% include_subjects)
+#   par.melt = par.melt %>% group_by(x, sample, context_order) %>% summarise(value = mean(value)) %>% ungroup() %>% filter(x != "NotRecorded")
+#   myplot = ggplot(par.melt, # %>% filter(context_order <3), 
+#                   aes(x = x, y = value, fill = x)) + geom_violin() + ggtitle(par) + xlab(var) + labs(fill = var) # + facet_grid( . ~ context_order)
+#   if(!is.null(ylimit)) myplot = myplot + ylim(ylimit)
+#   print(myplot)
+# }
+
+meandrift = colMeans(parVals$drift)
+boxplot(meandrift ~ dataList$choice)
+plot(meandrift ~ dataList$amount_later_centered)
 
 if (F){ 
 meandrift = rowMeans(parVals$drift)
