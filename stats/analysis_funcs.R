@@ -250,7 +250,7 @@ check_jags_model = function(myfit, myfit_rjags, myfit_samples) {
 ########################################################################################################
 
 
-get_par = function(par, var, ylimit=NULL){
+get_par_stan = function(par, var, ylimit=NULL){
   mypar = parVals[par] 
   allIndPars$x = as.factor(unlist(allIndPars[var]))
   par.melt = melt(mypar, varnames = c("sample", "index"))
@@ -258,6 +258,20 @@ get_par = function(par, var, ylimit=NULL){
   par.melt = subset(par.melt, subjID %in% include_subjects & x != "NotRecorded")
   par.melt = par.melt %>% group_by(x, sample, context_order) %>% summarise(value = mean(value)) %>% ungroup() 
   myplot = ggplot(par.melt, aes(x = x, y = value, fill = x)) + geom_violin() + ggtitle(par) + xlab(var) + labs(fill = var) + facet_grid(. ~ context_order)
+  if(!is.null(ylimit)) myplot = myplot + ylim(ylimit)
+  print(myplot)
+}
+
+get_par_jags = function(par, var, ylimit=NULL){
+  mypar = parVals[[par]]
+  rownames(mypar) = seq(nrow(mypar))
+  allIndPars$x = as.factor(unlist(allIndPars[[var]]))
+  par.melt = melt(mypar, varnames = c("index", "sample"))
+  par.melt = merge(par.melt, allIndPars, by = "index", suffixes = c('par', ''))
+  par.melt = subset(par.melt, subjID %in% include_subjects)
+  par.melt = par.melt %>% group_by(x, sample, context_order) %>% summarise(value = mean(value)) %>% ungroup() %>% filter(x != "NotRecorded")
+  myplot = ggplot(par.melt, # %>% filter(context_order <3),
+                  aes(x = x, y = value, fill = x)) + geom_violin() + ggtitle(par) + xlab(var) + labs(fill = var) # + facet_grid( . ~ context_order)
   if(!is.null(ylimit)) myplot = myplot + ylim(ylimit)
   print(myplot)
 }

@@ -41,18 +41,6 @@ load(file.path(WDD, INPUT_FILE))
 
 grouping_var = 'subj_context'
 choicedata.common$subj_context = paste(choicedata.common$subjID, choicedata.common$context)
-if (F)
-  choicedata.common = subset(
-    choicedata.common,
-    !subjID %in% c(
-      "60f534e6b1227dde7dea8273",
-      "60f5a27ad908d2f80eaaa443",
-      "60fabcb2529d45989426e018",
-      "60fcb6fda208edc3ccf3fe6d",
-      "60feff18b2baaaf388f1fa86"
-    )
-  )
-
 dataList = organize_data(choicedata.common, grouping_var, long = T)
 
 subjList <-
@@ -127,6 +115,7 @@ monitor = c(
   "bias.mu",
   "bias.kappa",
   "bias.p",
+  "drift",
   "deviance"
 )
 

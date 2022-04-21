@@ -98,18 +98,6 @@ allIndPars.subj = allIndPars %>% group_by(subjID) %>% summarise(keep = min(lower
 #allIndPars.subj = allIndPars %>% group_by(subjID) %>% summarise(keep = T) %>% filter(keep) %>% ungroup()
 include_subjects = allIndPars.subj$subjID
 
-get_par = function(par, var, ylimit=NULL){
-  mypar = parVals[par] 
-  allIndPars$x = as.factor(unlist(allIndPars[var]))
-  par.melt = melt(mypar, varnames = c("sample", "index"))
-  par.melt = merge(par.melt, allIndPars, by = "index")
-  par.melt = subset(par.melt, subjID %in% include_subjects & x != "NotRecorded")
-  par.melt = par.melt %>% group_by(x, sample, context_order) %>% summarise(value = mean(value)) %>% ungroup() 
-  myplot = ggplot(par.melt, aes(x = x, y = value, fill = x)) + geom_violin() + ggtitle(par) + xlab(var) + labs(fill = var) + facet_grid(. ~ context_order)
-  if(!is.null(ylimit)) myplot = myplot + ylim(ylimit)
-  print(myplot)
-}
-
 meandrift = colMeans(parVals$drift)
 boxplot(meandrift ~ dataList$choice)
 plot(meandrift ~ dataList$amount_later_centered)
@@ -121,11 +109,11 @@ plot(meandrift ~ dataList$amount_later_centered)
 
 for (var in c("context",  "background_col"))
 {
-  get_par("drift_intercept_gen", var)
-  get_par("drift_slope_gen", var)
-  get_par("boundary_gen", var )
-  get_par("bias_gen", var)
-  get_par("nondectime_gen", var)
+  get_par_stan("drift_intercept_gen", var)
+  get_par_stan("drift_slope_gen", var)
+  get_par_stan("boundary_gen", var )
+  get_par_stan("bias_gen", var)
+  get_par_stan("nondectime_gen", var)
   
 }
 context_sigmas = c(5, 2, 1)
