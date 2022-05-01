@@ -26,7 +26,7 @@ pars = c("b.drift.intercept.mu", "b.drift.intercept.pr",
 
 ```{r, fig.width = 20}
 # Load previous fits
-load('../results/linear_drift_ddm-20-04-2022_22:15-10000-1e+05-jags.RData') 
+load('../results/linear_drift_ddm-22-04-2022_02:24-10000-50000-jags.RData') 
 
 chain1 = as.matrix(coda_samples[[1]])
 chain2 = as.matrix(coda_samples[[2]])

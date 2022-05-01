@@ -115,7 +115,7 @@ monitor = c(
   "bias.mu",
   "bias.kappa",
   "bias.p",
-  "drift",
+#  "drift",
   "deviance"
 )
 
