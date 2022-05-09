@@ -1,10 +1,21 @@
+library(rjags)
+library(runjags)
+library(lme4)
+library(lmerTest)
 library(ggplot2)
+library(ggpubr)
 library(reshape2)
 library(plyr)
 library(dplyr)
 
 conversion_rate = 6 / 8 # USD to GBP
 base_rate = 6
+
+par_labels =  c("b.drift.intercept.p" = "drift baseline",
+                "b.drift.a mount.p" = "drift sensitivity",
+                "bias.p" = "bias",
+                "nondectime.p" = "non-decision time",
+                "noise.p" = "noise")                
 
 ########################################################################################################
 # some aux functions
