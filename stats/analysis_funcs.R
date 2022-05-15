@@ -11,11 +11,11 @@ library(dplyr)
 conversion_rate = 6 / 8 # USD to GBP
 base_rate = 6
 
-par_labels =  c("b.drift.intercept.p" = "drift baseline",
-                "b.drift.a mount.p" = "drift sensitivity",
-                "bias.p" = "bias",
-                "nondectime.p" = "non-decision time",
-                "noise.p" = "noise")                
+par_labels =  c("b.drift.intercept.p" = "Drift intercept",
+                "b.drift.a mount.p" = "Drift sensitivity",
+                "bias.p" = "Bias",
+                "nondectime.p" = "Non-decision time",
+                "noise.p" = "Noise")                
 
 ########################################################################################################
 # some aux functions
@@ -282,7 +282,7 @@ get_par_jags = function(par, var, ylimit=NULL){
   par.melt = subset(par.melt, subjID %in% include_subjects)
   par.melt = par.melt %>% group_by(x, sample, context_order) %>% summarise(value = mean(value)) %>% ungroup() %>% filter(x != "NotRecorded")
   myplot = ggplot(par.melt, # %>% filter(context_order <3),
-                  aes(x = x, y = value, fill = x)) + geom_violin() + ggtitle(par) + xlab(var) + labs(fill = var) # + facet_grid( . ~ context_order)
+                  aes(x = x, y = value, fill = x)) + geom_violin() + ggtitle(par) + xlab(var) + labs(fill = var)  
   if(!is.null(ylimit)) myplot = myplot + ylim(ylimit)
   print(myplot)
 }

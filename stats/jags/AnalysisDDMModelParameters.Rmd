@@ -22,7 +22,7 @@ dataList = organize_data(choicedata.common, grouping_var, long = T)
 subjList <- unique(choicedata.common[c('subjID', 'context', 'context_num', 'context_order', 'background_col', grouping_var)]) 
 
 choicedata.common = choicedata.common %>% mutate(Context = ifelse(context == 'c1', 'High volatility', 'Low volatility'),
-                                   Choice = ifelse(choice == 1, 'Delayed option', 'Immediate option'))
+                                   Choice = ifelse(choice == 1, 'Later option', 'Immediate option'))
 
 ratingdata.sub = ratingdata.sub %>% mutate(Context = ifelse(context == 'c1', 'High volatility', 'Low volatility'))
 
@@ -168,7 +168,7 @@ print(myplot.RT.choice)
 
 myplot = ggplot(data = choicedata, aes(x = cut(ev, breaks), y = log(rt), fill = context)) +
   geom_violin() + 
-  xlab('Subjective value of delayed reward') + 
+  xlab('Subjective value of later amount') + 
   ylab('RT (s)') + ylim(-5, 5)
 
 #print(myplot)
@@ -190,7 +190,7 @@ myplot.choiceprob = ggplot(data = choicedata.group, aes(x = ev, y = prob_late.me
   geom_point() + 
   geom_errorbar() + 
   xlab('Later amount') + 
-  ylab('Probability of delayed option') + theme(legend.position = 'bottom', legend.title = element_blank() ) 
+  ylab('Probability of later option') + theme(legend.position = 'bottom', legend.title = element_blank() ) 
 
 print(myplot.choiceprob)
 
@@ -229,7 +229,7 @@ ratingdata = ratingdata %>% mutate( ev = amount_later_centered, bid.diff = (bid.
 myplot = ggplot(data = ratingdata, aes(x = ev, y = bid.diff, color = context, group = subjID)) +
   geom_line() + 
   geom_point() + 
-  xlab('Subjective value of delayed reward') + 
+  xlab('Subjective value of later amount') + 
   ylab('Price range') + facet_grid(.~context)
 print(myplot)
 
@@ -241,7 +241,7 @@ myplot.range = ggplot(data = ratingdata.group, aes(x = ev, y = bid.diff.mean, ym
   geom_line() + 
   geom_point() + 
   geom_errorbar() + 
-  xlab('Subjective value of delayed reward') + 
+  xlab('Subjective value of later amount') + 
   ylab('Price range')
 
 print(myplot.range)
@@ -333,10 +333,14 @@ print(myplot.main.amount)
 ## Check stability of parameters
 
 ```{r, fig.width = 15}
-allIndPars = allIndPars %>% mutate(Context = ifelse(context == 'c1', 'High volatility', 'Low volatility'))
+allIndPars = allIndPars %>% mutate(Context = ifelse(context == 'c1', 'High', 'Low'))
 
 allIndPars.melt = melt(allIndPars %>% filter(subjID %in% include_subjects), id.vars = c("subjID", "Context", "context", "context_order"), variable.name = "parameter", value.name = "value") %>% filter(parameter %in% mypars) %>%mutate(value = as.numeric(value), parameter_label = par_labels[parameter])
-myplot.reliab = ggplot(allIndPars.melt, aes(x = Context, y = value, group = subjID)) + geom_line() + facet_wrap( .~ parameter_label, scales = "free", nrow = 1 )
+myplot.reliab = ggplot(allIndPars.melt, aes(x = Context, y = value, group = subjID)) + geom_line(size = 0.4) + geom_point(size = 0.6) +
+  ylab('Parameter value') + 
+  xlab('Volatility') + 
+  facet_wrap( .~ parameter_label, scales = "free", nrow = 1 )
+
 print(myplot.reliab)
 #myplot = ggplot(allIndPars.melt, aes(x = context, y = value, group = context )) + geom_violin() + facet_grid( context_order ~ parameter, scales = "free" )
 #print(myplot)
@@ -361,14 +365,25 @@ myplot = ggplot(allIndPars.diff, aes(x=0, y = value)) + geom_violin() + geom_poi
 allIndPars.sum <- summarySE(allIndPars.melt, measurevar="value.corr", groupvars=c("Context","parameter_label"))
 
 # Standard error of the mean
-myplot.differences = ggplot(allIndPars.sum, aes(x=Context, y=value.corr)) + 
-    geom_errorbar(aes(ymin = value.corr-se, ymax = value.corr+se), width=.1) +
-    geom_line() +
+
+myplot.differences = ggplot(allIndPars.sum, aes(x=Context, y=value.corr, ymin = value.corr-se, ymax = value.corr+se)) + 
     geom_point() + 
+    geom_errorbar(width=.1) +
+    ylab('Parameter value') + 
+    xlab('Volatility') + 
+    facet_wrap(.~ parameter_label, scales = 'free', nrow = 1)
+print(myplot.differences)
+
+myplot.differences.all = ggplot() + 
+    geom_line(data = allIndPars.melt, aes(x = Context, y = value, group = subjID), col = "gray", size = 0.5) + 
+    geom_point(data = allIndPars.melt, aes(x = Context, y = value, group = subjID), col = "gray") +
+    geom_line(data = allIndPars.sum, aes(x=Context, y=value.corr)) + 
+    geom_point(data = allIndPars.sum, aes(x=Context, y=value.corr)) + 
+    geom_errorbar(data = allIndPars.sum, aes(ymin = value.corr-se, ymax = value.corr+se, x=Context, y=value.corr), width=.1) +
     ylab('Parameter value') + 
     xlab('') + 
     facet_wrap(.~ parameter_label, scales = 'free', nrow = 1)
-print(myplot.differences)
+print(myplot.differences.all)
 
 allIndPars.sum <- summarySE(allIndPars.diff, measurevar="value.corr", groupvars=c( "parameter"))
 
@@ -403,19 +418,21 @@ pairs(xx[mypars])
 
 ```{r}
 
-HEIGHT1ROW = 4.06*2
-HEIGHT2ROW = 4.06*4
-WIDTH1COL = 3.8*2 
-WIDTH2COL = 3.8*4
+HEIGHT1ROW = 4.06
+WIDTH1COL = 3.8 
 DPI = 600
 
 FIGS_DIR = '../figs'
 
-fig.a = ggarrange(myplot.RT, myplot.RT.choice, myplot.choiceprob, myplot.range, ncol=2, nrow=2)
-ggsave(filename=file.path(FIGS_DIR, "Choices.png"), plot = fig.a, dpi = DPI, width = WIDTH2COL, height = HEIGHT2ROW)
+fig.a1 = ggarrange(myplot.RT, myplot.RT.choice, myplot.choiceprob, ncol=3, nrow=1, labels = c('A', 'B', 'C'))
+fig.a2 = ggarrange(myplot.reliab, myplot.differences, ncol=1, nrow=2, labels = c('D', 'E'))
+fig.a = ggarrange(fig.a1, fig.a2, ncol=1, nrow=2, heights = c(1, 2))
+ggsave(filename=file.path(FIGS_DIR, "Choices.png"), plot = fig.a, dpi = DPI, width = WIDTH1COL*3, height = HEIGHT1ROW*3)
 
-fig.b = ggarrange(myplot.reliab, myplot.differences, ncol=1, nrow=2)
-ggsave(filename=file.path(FIGS_DIR, "ChoiceParameters.png"), plot = fig.b, dpi = DPI, width = WIDTH2COL, height = HEIGHT2ROW)
+
+fig.b = ggarrange(myplot.range, ncol=1, nrow=1, labels = c('A'))
+ggsave(filename=file.path(FIGS_DIR, "Ratings.png"), plot = fig.a, dpi = DPI, width = WIDTH1COL, height = HEIGHT1ROW)
+
 
 ```
 
