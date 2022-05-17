@@ -431,7 +431,7 @@ ggsave(filename=file.path(FIGS_DIR, "Choices.png"), plot = fig.a, dpi = DPI, wid
 
 
 fig.b = ggarrange(myplot.range, ncol=1, nrow=1, labels = c('A'))
-ggsave(filename=file.path(FIGS_DIR, "Ratings.png"), plot = fig.a, dpi = DPI, width = WIDTH1COL, height = HEIGHT1ROW)
+ggsave(filename=file.path(FIGS_DIR, "Ratings.png"), plot = fig.b, dpi = DPI, width = WIDTH1COL, height = HEIGHT1ROW)
 
 
 ```
