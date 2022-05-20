@@ -141,7 +141,7 @@ myplot.RT = ggplot(data = choicedata.group, aes(x = ev, y = rt.mean, ymin = rt.m
   geom_line() + 
   geom_point() + 
   geom_errorbar() + 
-  xlab('Later amount') +
+  xlab('Later amount ($)') +
   ylab('RT (s)') 
 
 print(myplot.RT)
@@ -161,14 +161,14 @@ myplot.RT.choice = ggplot(data = choicedata.group.choice, aes(x = ev, y = rt.mea
   geom_line() + 
   geom_point() + 
   geom_errorbar() + 
-  xlab('Later amount') + 
+  xlab('Later amount ($)') + 
   ylab('RT (s)') + facet_grid( .~Choice ) + theme(legend.position = 'bottom', legend.title = element_blank() ) 
 
 print(myplot.RT.choice)
 
 myplot = ggplot(data = choicedata, aes(x = cut(ev, breaks), y = log(rt), fill = context)) +
   geom_violin() + 
-  xlab('Subjective value of later amount') + 
+  xlab('Subjective value of later amount ($)') + 
   ylab('RT (s)') + ylim(-5, 5)
 
 #print(myplot)
@@ -189,8 +189,8 @@ myplot.choiceprob = ggplot(data = choicedata.group, aes(x = ev, y = prob_late.me
   geom_line() + 
   geom_point() + 
   geom_errorbar() + 
-  xlab('Later amount') + 
-  ylab('Probability of later option') + theme(legend.position = 'bottom', legend.title = element_blank() ) 
+  xlab('Later amount ($)') + 
+  ylab('Frequency of later option') + theme(legend.position = 'bottom', legend.title = element_blank() ) 
 
 print(myplot.choiceprob)
 
@@ -229,7 +229,7 @@ ratingdata = ratingdata %>% mutate( ev = amount_later_centered, bid.diff = (bid.
 myplot = ggplot(data = ratingdata, aes(x = ev, y = bid.diff, color = context, group = subjID)) +
   geom_line() + 
   geom_point() + 
-  xlab('Subjective value of later amount') + 
+  xlab('Subjective value of later amount ($)') + 
   ylab('Price range') + facet_grid(.~context)
 print(myplot)
 
@@ -241,7 +241,7 @@ myplot.range = ggplot(data = ratingdata.group, aes(x = ev, y = bid.diff.mean, ym
   geom_line() + 
   geom_point() + 
   geom_errorbar() + 
-  xlab('Subjective value of later amount') + 
+  xlab('Subjective value of later amount ($)') + 
   ylab('Price range')
 
 print(myplot.range)
