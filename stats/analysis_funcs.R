@@ -7,6 +7,7 @@ library(ggpubr)
 library(reshape2)
 library(plyr)
 library(dplyr)
+library(GGally)
 
 conversion_rate = 6 / 8 # USD to GBP
 base_rate = 6

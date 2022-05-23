@@ -324,9 +324,11 @@ xx = allIndPars %>% filter(subjID %in% include_subjects)
 cor(xx[mypars])
 pairs(xx[mypars])
 
-xx = allIndPars %>% filter(subjID %in% include_subjects & nondectime_gen < 2)
-cor(xx[mypars])
-pairs(xx[mypars])
+mydata = allIndPars %>% filter(subjID %in% include_subjects & nondectime_gen < 2)
+cor(mydata[mypars])
+pairs(mydata[mypars])
+
+ggpairs(mydata, columns = , ggplot2(aes(col=Context))
 
 ```
 
