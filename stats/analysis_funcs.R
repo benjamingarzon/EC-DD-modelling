@@ -8,6 +8,7 @@ library(reshape2)
 library(plyr)
 library(dplyr)
 library(GGally)
+library(ggh4x)
 
 conversion_rate = 6 / 8 # USD to GBP
 base_rate = 6
@@ -274,16 +275,19 @@ get_par_stan = function(par, var, ylimit=NULL){
   print(myplot)
 }
 
-get_par_jags = function(par, var, ylimit=NULL){
+get_par_jags = function(par, var, var2=NULL, ylimit=NULL){
   mypar = parVals[[par]]
   rownames(mypar) = seq(nrow(mypar))
   allIndPars$x = as.factor(unlist(allIndPars[[var]]))
+  if (!is.null(var2)) allIndPars$z = as.factor(unlist(allIndPars[[var2]]))
+  else allIndPars$z = NA
   par.melt = melt(mypar, varnames = c("index", "sample"))
   par.melt = merge(par.melt, allIndPars, by = "index", suffixes = c('par', ''))
   par.melt = subset(par.melt, subjID %in% include_subjects)
-  par.melt = par.melt %>% group_by(x, sample, context_order) %>% summarise(value = mean(value)) %>% ungroup() %>% filter(x != "NotRecorded")
+  par.melt = par.melt %>% group_by(x, z, sample, context_order) %>% summarise(value = mean(value)) %>% ungroup() %>% filter(x != "NotRecorded")
   myplot = ggplot(par.melt, # %>% filter(context_order <3),
                   aes(x = x, y = value, fill = x)) + geom_violin() + ggtitle(par) + xlab(var) + labs(fill = var)  
+  if (!is.null(var2)) myplot = myplot + facet_grid(. ~ z)
   if(!is.null(ylimit)) myplot = myplot + ylim(ylimit)
   print(myplot)
 }

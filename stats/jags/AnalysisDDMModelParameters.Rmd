@@ -24,6 +24,7 @@ subjList <- unique(choicedata.common[c('subjID', 'context', 'context_num', 'cont
 choicedata.common = choicedata.common %>% mutate(Context = ifelse(context == 'c1', 'High volatility', 'Low volatility'),
                                    Choice = ifelse(choice == 1, 'Later option', 'Immediate option'))
 
+
 ratingdata.sub = ratingdata.sub %>% mutate(Context = ifelse(context == 'c1', 'High volatility', 'Low volatility'))
 
 ```
@@ -56,6 +57,8 @@ colnames(allIndPars) <- c(
 "nondectime.p", 
 "noise.p", 
 "subjID", "context", "context_num", "context_order", "background_col")
+
+allIndPars = allIndPars %>% mutate(Context = ifelse(context == 'c1', 'High volatility', 'Low volatility'))
 
 ```
 ## Remove subjects if they have low sensitivity
@@ -101,7 +104,7 @@ allIndPars.sub = subset(allIndPars, subjID %in% include_subjects)
 
 ```{r}
 
-for (var in c("context",  "background_col"))
+for (var in c("context",  "background_col", "context_order"))
 {
   get_par_jags("b.drift.intercept.p", var)
   get_par_jags("b.drift.amount.p", var)
@@ -109,6 +112,14 @@ for (var in c("context",  "background_col"))
   get_par_jags("nondectime.p", var)
   get_par_jags("noise.p", var)
 }
+
+
+get_par_jags("b.drift.intercept.p", var2="Context", var="context_order")
+get_par_jags("b.drift.amount.p", var2="Context", var="context_order")
+get_par_jags("bias.p", var2="Context", var="context_order")
+get_par_jags("nondectime.p", var2="Context", var="context_order")
+get_par_jags("noise.p", var2="Context", var="context_order")
+
 context_sigmas = c(5, 2, 1)
 
 allIndPars$context_sigma = context_sigmas[allIndPars$context_num]
@@ -126,18 +137,27 @@ for (mypar in mypars){
 } 
 ```
 
+
 ## Plot RTs in relation to estimated subjective value
 ```{r}
 breaks = seq(0.5, 8.5, 1)
-choicedata = merge(choicedata.common, allIndPars %>% filter(subjID %in% include_subjects), by = c('subjID', 'context', 'context_order', 'background_col'))
+choicedata = merge(choicedata.common, allIndPars %>% filter(subjID %in% include_subjects), by = c('subjID', 'Context', 'context', 'context_order', 'background_col'))
 choicedata = choicedata %>% mutate( ev = amount_later, context_num = as.numeric(substr(context, 2, 2))) %>% mutate(ev.cut = cut(ev, breaks))
+
+myplot.RT = ggplot(data = choicedata, aes(x = ev, y = rt, color = Context, group = subjID)) + geom_line(size=0.2) + 
+  geom_point(size=0.2) + 
+  xlab('Later amount ($)') +
+  ylab('Response time (s)') + facet_grid( context_order ~ Choice )
+
+print(myplot.RT)
+
 
 # outliers removed beforehand
 choicedata.group = choicedata %>% 
-  group_by(subjID, Context, ev.cut) %>% 
+  group_by(subjID, Context, context_order, ev.cut) %>% 
   dplyr::summarise(rt.median = median(rt), ev = mean(ev), prob_late = mean(choice))
 choicedata.group = choicedata.group%>%
-  group_by(Context, ev.cut) %>% 
+  group_by(Context, context_order, ev.cut) %>% 
   dplyr::summarise(rt.mean = mean(rt.median), rt.sem = sem(rt.median), 
             prob_late.mean = mean(prob_late), prob_late.sem = sem(prob_late),
             ev = mean(ev))
@@ -145,18 +165,18 @@ choicedata.group = choicedata.group%>%
 myplot.RT = ggplot(data = choicedata.group, aes(x = ev, y = rt.mean, ymin = rt.mean - rt.sem, ymax = rt.mean + rt.sem, color = Context, group = Context)) +
   geom_line() + 
   geom_point() + 
-  geom_errorbar() + 
+  geom_errorbar(width=0.5) + 
   xlab('Later amount ($)') +
-  ylab('Response time (s)') 
+  ylab('Response time (s)') + facet_grid( . ~ context_order )
 
 print(myplot.RT)
 
 choicedata.group.choice = choicedata %>% 
-  group_by(subjID, Context, ev.cut, Choice) %>% 
+  group_by(subjID, Context, context_order, ev.cut, Choice) %>% 
   dplyr::summarise(rt.median = median(rt), ev = mean(ev), prob_late = mean(choice))
 
 choicedata.group.choice = choicedata.group.choice%>%
-  group_by(Context, ev.cut, Choice) %>% 
+  group_by(Context, ev.cut, context_order, Choice) %>% 
   dplyr::summarise(rt.mean = mean(rt.median), rt.sem = sem(rt.median), 
             prob_late.mean = mean(prob_late), prob_late.sem = sem(prob_late),
             ev = mean(ev))
@@ -165,9 +185,9 @@ choicedata.group.choice = choicedata.group.choice%>%
 myplot.RT.choice = ggplot(data = choicedata.group.choice, aes(x = ev, y = rt.mean, ymin = rt.mean - rt.sem, ymax = rt.mean + rt.sem, color = Context, group = Context)) +
   geom_line() + 
   geom_point() + 
-  geom_errorbar() + 
+  geom_errorbar(width=0.5) + 
   xlab('Later amount ($)') + 
-  ylab('Response time (s)') + facet_grid( .~Choice ) + theme(legend.position = 'bottom', legend.title = element_blank() ) 
+  ylab('Response time (s)') + facet_grid(  Choice ~ context_order) + theme(legend.position = 'bottom', legend.title = element_blank() ) 
 
 print(myplot.RT.choice)
 
@@ -185,7 +205,25 @@ print(summary(model))
 model = lmer(log(rt) ~ context*(amount_later_centered + amount_later_centered.2)  + context_order + (1 + amount_later_centered|subjID), data = choicedata)
 print(summary(model))
 
-model = lmer(log(rt) ~ context*(amount_later_centered + amount_later_centered.2) + choice + context_order + (1 + amount_later_centered|subjID), data = choicedata)
+model = lmer(log(rt) ~ context_order*context*(amount_later_centered + amount_later_centered.2) + (1 + amount_later_centered|subjID), data = choicedata)
+print(summary(model))
+```
+
+## Check distribution of context order and Context
+```{r}
+choicedata.order = choicedata %>% group_by(subjID) %>% slice_head(n=1) 
+choicedata.order = choicedata.order %>% group_by(Context, context, context_order) %>% summarise(size = n())
+print(choicedata.order)
+```
+
+## Frequency of later option across contexts
+```{r}
+choicedata.choice = choicedata %>% group_by(subjID, Context, context, context_order) %>% summarise(proportion = mean(choice))
+myplot = ggplot(data = choicedata.choice, aes(x = Context,  y = proportion)) + geom_violin() + xlab('Context') + 
+  ylab('Frequency of later option') + facet_grid(. ~ context_order )
+print(myplot)
+
+model = lmer(proportion ~ context + context_order + (1 |subjID), data = choicedata.choice)
 print(summary(model))
 
 ```
@@ -199,9 +237,9 @@ myplot.choiceprob = ggplot(data = choicedata.group, aes(x = ev, y = prob_late.me
                                              ymax = prob_late.mean + prob_late.sem, color = Context, ratinggroup = Context)) +
   geom_line() + 
   geom_point() + 
-  geom_errorbar() + 
+  geom_errorbar(width=0.5) + 
   xlab('Later amount ($)') + 
-  ylab('Frequency of later option') + theme(legend.position = 'bottom', legend.title = element_blank() ) 
+  ylab('Frequency of later option') + theme(legend.position = 'bottom', legend.title = element_blank() ) + facet_grid( .~ context_order )
 
 print(myplot.choiceprob)
 
@@ -209,10 +247,6 @@ model = glmer(choice ~ context*(amount_later_centered + amount_later_centered.2)
 print(summary(model))
 plot(model)
 ```
-
-
-
-
 
 
 ## Plot ratings in relation to estimated subjective value
@@ -233,7 +267,7 @@ ratingdata.sub = ratingdata.sub %>% group_by(amount_later) %>% mutate(bid.diff.o
 ratingdata.sub.clean = subset(ratingdata.sub, bid.diff.outlier == F & bid.rt.outlier == F )
 
 
-ratingdata = merge(ratingdata.sub.clean, allIndPars %>% filter(subjID %in% include_subjects), by = c('subjID', 'context', 'context_num', 'context_order', 'background_col'))
+ratingdata = merge(ratingdata.sub.clean, allIndPars %>% filter(subjID %in% include_subjects), by = c('subjID', 'context', 'context_num', 'context_order', 'background_col', 'Context'))
 ratindata = subset(ratingdata, subjID %in% include_subjects)
 ratingdata = ratingdata %>% mutate( ev = amount_later, bid.diff = (bid.high - bid.low )) 
 
@@ -241,19 +275,19 @@ myplot = ggplot(data = ratingdata, aes(x = ev, y = bid.diff, color = context, gr
   geom_line() + 
   geom_point() + 
   xlab('Subjective value of later amount ($)') + 
-  ylab('Price range') + facet_grid(.~context)
+  ylab('Price range') + facet_grid(Context ~ context_order)
 print(myplot)
 
 ratingdata.group = ratingdata %>% 
-  group_by(Context, amount_later) %>% 
+  group_by(Context, context_order, amount_later) %>% 
   summarise(bid.diff.mean = mean(bid.diff), bid.diff.sem = sem(bid.diff), ev = mean(ev))
 
-myplot.range = ggplot(data = ratingdata.group, aes(x = ev, y = bid.diff.mean, ymin = bid.diff.mean - bid.diff.sem, ymax = bid.diff.mean + bid.diff.sem, color = Context)) +
+myplot.range = ggplot(data = ratingdata.group, aes(x = ev, y = bid.diff.mean, ymin = bid.diff.mean - bid.diff.sem, ymax = bid.diff.mean + bid.diff.sem, group = Context,  col = Context)) +
   geom_line() + 
   geom_point() + 
   geom_errorbar() + 
   xlab('Subjective value of later amount ($)') + 
-  ylab('Willingness-to-pay range ($)')
+  ylab('Willingness-to-pay range ($)') + facet_grid(. ~ context_order)
 
 print(myplot.range)
 
@@ -292,14 +326,14 @@ for (mypar in mypars.rt){
   #cor.p = cbind(cor.p, sapply(RFX[mypars], function(x) cor.test(x, RFX$amount_later_centered)$p.value))
 }
 #colnames(cor.est) = colnames(cor.p) = mypars.rt
-myplot = ggplot(data = ratingdata, aes(x = context, y = key.rt/1000, fill = context)) +
+myplot = ggplot(data = ratingdata, aes(x = Context, y = key.rt/1000, fill = Context)) +
   geom_violin() + 
   xlab('Context') +
-  ylab('Response time') 
+  ylab('Response time') + facet_grid( .~ context_order )
 print(myplot)
 
 ratingdata.group = ratingdata %>% 
-  group_by(Context, amount_later) %>% 
+  group_by(Context, context_order, amount_later) %>% 
   summarise(key.rt.mean = mean(key.rt)/1000,key.rt.sem = sem(key.rt)/1000, ev = mean(ev))
 
 
@@ -308,15 +342,15 @@ myplot.key.rt = ggplot(data = ratingdata.group, aes(x = ev, y = key.rt.mean, ymi
   geom_point() + 
   geom_errorbar() + 
   xlab('Subjective value of later amount ($)') + 
-  ylab('Response time (s)')
+  ylab('Response time (s)') + facet_grid( .~ context_order )
 
 print(myplot.key.rt)
 
 
-myplot = ggplot(data = ratingdata, aes(x = as.factor( amount_later_centered), y = bid.rt.second/1000, fill = context)) +
+myplot = ggplot(data = ratingdata, aes(x = as.factor( amount_later_centered), y = bid.rt.second/1000, fill = Context)) +
   geom_boxplot() + 
   xlab('Amount') +
-  ylab('Response time') 
+  ylab('Response time') + facet_grid( context_order ~ . )
 print(myplot)
 ```
 
@@ -379,15 +413,19 @@ for ( mypar in mypars){
                                                                             mutate(context_order = 0)) + resid(model)
   plot(value.corr ~ value, allIndPars.melt %>% filter(parameter == mypar) )
 }
+```
 
 
+```{r, fig.width = 15}
 allIndPars.diff = merge(subset(allIndPars.melt, context == 'c1'), subset(allIndPars.melt, context == 'c2'), by = c('subjID', 'parameter'), suffixes = c('.c1', '.c2')) %>% mutate(value.corr = value.corr.c2 - value.corr.c1, c1_first = context_order.c1 == 1)
-myplot = ggplot(allIndPars.diff, aes(x=0, y = value, fill = c1_first )) + geom_violin() + facet_wrap( . ~ parameter, scales = "free" )
-#print(myplot)
-myplot = ggplot(allIndPars.diff, aes(x=0, y = value)) + geom_violin() + geom_point(position = "jitter") + facet_wrap( . ~ parameter, scales = "free" )
-#print(myplot)
 
-allIndPars.sum <- summarySE(allIndPars.melt, measurevar="value.corr", groupvars=c("Context","parameter_label"))
+myplot = ggplot(allIndPars.diff, aes(x=0, y = value.corr, fill = c1_first )) + geom_violin() + facet_wrap( . ~ parameter, scales = "free" )
+print(myplot)
+
+myplot = ggplot(allIndPars.diff, aes(x=0, y = value.corr)) + geom_violin() + geom_point(position = "jitter") + facet_wrap( . ~ parameter, scales = "free" )
+print(myplot)
+
+allIndPars.sum <- summarySE(allIndPars.melt, measurevar="value.corr", groupvars=c("Context","parameter_label", "context_order"))
 
 # Standard error of the mean
 
@@ -396,7 +434,8 @@ myplot.differences = ggplot(allIndPars.sum, aes(x=Context, y=value.corr, ymin = 
     geom_errorbar(width=.1) +
     ylab('Parameter value') + 
     xlab('Volatility') + 
-    facet_wrap(.~ parameter_label, scales = 'free', nrow = 1)
+    ggh4x::facet_grid2(context_order ~ parameter_label, scales = 'free_y', independent = 'y')
+#    facet_wrap(.~ parameter_label, scales = 'free', nrow = 1)
 print(myplot.differences)
 
 myplot.differences.all = ggplot() + 
@@ -411,15 +450,18 @@ myplot.differences.all = ggplot() +
 print(myplot.differences.all)
 
 allIndPars.sum <- summarySE(allIndPars.diff, measurevar="value.corr", groupvars=c( "parameter"))
+```
 
+
+```{r, fig.width = 15}
 # Standard error of the mean
-ggplot(allIndPars.sum, aes(x=parameter, y=value.corr)) + 
+myplot = ggplot(allIndPars.sum, aes(x=parameter, y=value.corr)) + 
     geom_errorbar(aes(ymin = value.corr-se, ymax = value.corr+se), width=.1) +
     geom_line() +
     geom_point() + 
     ylab('Parameter difference (low volatility - high volatility)') + 
     geom_hline(yintercept = 0, col = 'red')
-
+print(myplot)
 
 ```
 
