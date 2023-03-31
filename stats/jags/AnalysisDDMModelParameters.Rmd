@@ -1,13 +1,12 @@
 
-## Extract parameters
-
+# Perform analyses on response variables and parameters
 ```{r}
 rm(list = ls())
 source("../analysis_funcs.R")
 
 WD = '../../data'
 WDD = file.path(WD, 'experiment')
-mytheme = theme_classic(base_size = 13) + theme(legend.position = 'bottom', legend.title = element_blank() ) 
+mytheme = theme_classic(base_size = 13) + theme(legend.position = 'bottom', legend.title = element_blank())
 theme_set(mytheme)
 # Load previous fit
 MYFILE = '../results/linear_drift_ddm-02-05-2022_00:03-10000-50000-jags-pars.RData'
@@ -19,18 +18,42 @@ load(file.path(WDD, "processed_data_censored.RData"))
 grouping_var = 'subj_context'
 choicedata.common$subj_context = paste(choicedata.common$subjID, choicedata.common$context)
 dataList = organize_data(choicedata.common, grouping_var, long = T)
-subjList <- unique(choicedata.common[c('subjID', 'context', 'context_num', 'context_order', 'background_col', grouping_var)]) 
+subjList <-
+  unique(choicedata.common[c('subjID',
+                             'context',
+                             'context_num',
+                             'context_order',
+                             'background_col',
+                             grouping_var)])
 
-choicedata.common = choicedata.common %>% mutate(Context = ifelse(context == 'c1', 'High volatility', 'Low volatility'), Choice = ifelse(choice == 1, 'Later option', 'Immediate option'), Context_order = ifelse(context_order == 1, 'First context', 'Second context'))
+choicedata.common = choicedata.common %>% mutate(
+  Context = ifelse(context == 'c1', 'High volatility', 'Low volatility'),
+  Choice = ifelse(choice == 1, 'Later option', 'Immediate option'),
+  Context_order = ifelse(context_order == 1, 'First context', 'Second context'),
+  Group =  ifelse(
+    context_order == 1 &
+      context == 'c1' |
+      context_order == 2 & context == 'c2' ,
+    'High first',
+    'Low first'
+  )
+)
 
-ratingdata.sub = ratingdata.sub %>% mutate(Context = ifelse(context == 'c1', 'High volatility', 'Low volatility'), 
-                                           Context_order = ifelse(context_order == 1, 'First context', 'Second context'))
-
+ratingdata.sub = ratingdata.sub %>% mutate(
+  Context = ifelse(context == 'c1', 'High volatility', 'Low volatility'),
+  Context_order = ifelse(context_order == 1, 'First context', 'Second context'),
+  Group =  ifelse(
+    context_order == 1 &
+      context == 'c1' |
+      context_order == 2 & context == 'c2' ,
+    'High first',
+    'Low first'
+  )
+)
 ```
 
-
+# Extract parameters
 ```{r}
-## Extract parameters
 numPars <- 5
 
 # Individual parameters (e.g., individual posterior means)
@@ -38,60 +61,75 @@ allIndPars <- array(NA, c(numSubjs, numPars))
 allIndPars <- as.data.frame(allIndPars)
 
 for (i in 1:numSubjs) {
-  allIndPars[i, ] <- c( 
-  mean(parVals$b.drift.intercept.p[i, ]), 
-  mean(parVals$b.drift.amount.p[i, ]), 
-  mean(parVals$bias.p[i, ]), 
-  mean(parVals$nondectime.p[i, ]), 
-  mean(parVals$noise.p[i, ])
+  allIndPars[i, ] <- c(
+    mean(parVals$b.drift.intercept.p[i, ]),
+    mean(parVals$b.drift.amount.p[i, ]),
+    mean(parVals$bias.p[i, ]),
+    mean(parVals$nondectime.p[i, ]),
+    mean(parVals$noise.p[i, ])
   )
 }
 
-allIndPars = cbind(allIndPars, subjList[-ncol(subjList)]) 
+allIndPars = cbind(allIndPars, subjList[-ncol(subjList)])
 
 colnames(allIndPars) <- c(
-"b.drift.intercept.p", 
-"b.drift.amount.p", 
-"bias.p", 
-"nondectime.p", 
-"noise.p", 
-"subjID", "context", "context_num", "context_order", "background_col")
+  "b.drift.intercept.p",
+  "b.drift.amount.p",
+  "bias.p",
+  "nondectime.p",
+  "noise.p",
+  "subjID",
+  "context",
+  "context_num",
+  "context_order",
+  "background_col"
+)
 
-allIndPars = allIndPars %>% mutate(Context = ifelse(context == 'c1', 'High volatility', 'Low volatility'), 
-                                   Context_short = ifelse(context == 'c1', 'High', 'Low'),
-                                   Context_order = ifelse(context_order == 1, 'First context', 'Second context'))
-
+allIndPars = allIndPars %>% mutate(
+  Context = ifelse(context == 'c1', 'High volatility', 'Low volatility'),
+  Context_short = ifelse(context == 'c1', 'High', 'Low'),
+  Context_order = ifelse(context_order == 1, 'First context', 'Second context'),
+  Group =  ifelse(
+    context_order == 1 &
+      context == 'c1' |
+      context_order == 2 & context == 'c2' ,
+    'High first',
+    'Low first'
+  )
+)
 ```
-## Remove subjects if they have low sensitivity
 
+# Remove subjects if they have low sensitivity
 ```{r}
-
 Rhat = max(myfit_summary[, 'psrf'])
 print(Rhat)
 
-g = grep( "b.drift.amount.p\\[", rownames(myfit_summary))
+g = grep("b.drift.amount.p\\[", rownames(myfit_summary))
 allIndPars$lower_bound = myfit_summary[g, 'Lower95']
 allIndPars$upper_bound = myfit_summary[g, 'Upper95']
 allIndPars$Median = myfit_summary[g, 'Median']
-allIndPars$b.drift.amount.p.0 = allIndPars$lower_bound >0 | allIndPars$upper_bound < 0 
+allIndPars$b.drift.amount.p.0 = allIndPars$lower_bound > 0 |
+  allIndPars$upper_bound < 0
 
-plot(allIndPars$lower_bound[order(allIndPars$lower_bound)], type = 'l', ylim = c(min(allIndPars$lower_bound), max(allIndPars$upper_bound)),
-     xlab = "Subject/Context", ylab = "5%-quantile for drift sensitivity")
+plot(
+  allIndPars$lower_bound[order(allIndPars$lower_bound)],
+  type = 'l',
+  ylim = c(min(allIndPars$lower_bound), max(allIndPars$upper_bound)),
+  xlab = "Subject/Context",
+  ylab = "5%-quantile for drift sensitivity"
+)
 #lines(allIndPars$upper_bound[order(allIndPars$lower_bound)]  , type = 'l')
 abline(0, 0, col = 'red')
-
 ```
 
-
+# Keep only subjects with a significant relationship between drift and value
 ```{r, fig.width = 15}
 allIndPars$index = seq(nrow(allIndPars))
 
-# keep subjects with a significant relationship between drift and value
 allIndPars.subj = allIndPars %>% group_by(subjID) %>% summarise(keep = max(lower_bound) > 0) %>% filter(keep) %>% ungroup()
 include_subjects = allIndPars.subj$subjID
 
 allIndPars.sub = subset(allIndPars, subjID %in% include_subjects)
-
 ```
 
 # Remove outliers
@@ -102,172 +140,49 @@ allIndPars.sub = subset(allIndPars, subjID %in% include_subjects)
 
 
 ## Group distributions for parameters
-
 ```{r}
-
 for (var in c("context",  "background_col", "context_order"))
 {
   get_par_jags("b.drift.intercept.p", var)
   get_par_jags("b.drift.amount.p", var)
-  get_par_jags("bias.p", var )
+  get_par_jags("bias.p", var)
   get_par_jags("nondectime.p", var)
   get_par_jags("noise.p", var)
 }
 
-
-get_par_jags("b.drift.intercept.p", var2="Context", var="context_order")
-get_par_jags("b.drift.amount.p", var2="Context", var="context_order")
-get_par_jags("bias.p", var2="Context", var="context_order")
-get_par_jags("nondectime.p", var2="Context", var="context_order")
-get_par_jags("noise.p", var2="Context", var="context_order")
+get_par_jags("b.drift.intercept.p", var2 = "Context", var = "context_order")
+get_par_jags("b.drift.amount.p", var2 = "Context", var = "context_order")
+get_par_jags("bias.p", var2 = "Context", var = "context_order")
+get_par_jags("nondectime.p", var2 = "Context", var = "context_order")
+get_par_jags("noise.p", var2 = "Context", var = "context_order")
 
 context_sigmas = c(5, 2, 1)
 
 allIndPars$context_sigma = context_sigmas[allIndPars$context_num]
 
-mypars = c("b.drift.intercept.p", "b.drift.amount.p", "bias.p", "nondectime.p", "noise.p") 
+mypars = c("b.drift.intercept.p",
+           "b.drift.amount.p",
+           "bias.p",
+           "nondectime.p",
+           "noise.p")
 
-
-for (mypar in mypars){
+for (mypar in mypars) {
   print("------------------------------------")
   print(mypar)
-  myform = formula(paste(mypar, "context + context_order + background_col + (1|subjID)", sep = "~"))
+  myform = formula(paste(
+    mypar,
+    "context + context_order + background_col + (1|subjID)",
+    sep = "~"
+  ))
   model = lmer(myform, data = allIndPars %>% filter(subjID %in% include_subjects))
   print(summary(model))
-
 } 
 ```
 
 
 ## Plot RTs in relation to estimated subjective value
 ```{r}
-breaks = seq(0.5, 8.5, 1)
-choicedata = merge(choicedata.common, allIndPars %>% filter(subjID %in% include_subjects), by = c('subjID', 'Context', 'context', 'Context_order', 'background_col', 'context_order'))
-choicedata = choicedata %>% mutate( ev = amount_later, context_num = as.numeric(substr(context, 2, 2))) %>% mutate(ev.cut = cut(ev, breaks))
-
-myplot.RT = ggplot(data = choicedata, aes(x = jitter(ev), y = log(rt), color = Context, group = subjID)) + geom_line(size=0.2) + 
-  geom_point(size=0.2) + 
-  xlab('Later amount ($)') +
-  ylab('Response time (s)') + facet_grid( Context_order ~ Choice )
-
-print(myplot.RT)
-
-
-# outliers removed beforehand
-choicedata.median = choicedata %>% 
-  group_by(subjID, Context, context, Context_order, context_order, ev.cut) %>% 
-  dplyr::summarise(rt.median = median(rt), ev = mean(ev), prob_late = mean(choice))
-
-myplot.RT = ggplot(data = choicedata.median, aes(x = ev, y = log(rt.median), color = Context, group = subjID)) + geom_line(size=0.2) + 
-  geom_point(size=0.2) + 
-  xlab('Later amount ($)') +
-  ylab('Response time (s)') + facet_grid( . ~ Context_order  )
-
-print(myplot.RT)
-
-
-choicedata.group = choicedata.median%>%
-  group_by(Context, Context_order, ev.cut) %>% 
-  dplyr::summarise(rt.mean = mean(rt.median), rt.sem = sem(rt.median), 
-            prob_late.mean = mean(prob_late), prob_late.sem = sem(prob_late),
-            ev = mean(ev))
-
-myplot.RT = ggplot(data = choicedata.group, aes(x = ev, y = rt.mean, ymin = rt.mean - rt.sem, ymax = rt.mean + rt.sem, color = Context, group = Context)) +
-  geom_line() + 
-  geom_point() + 
-  geom_errorbar(width=0.5) + 
-  xlab('Later amount ($)') +
-  ylab('Response time (s)') + facet_grid( . ~ Context_order )
-
-print(myplot.RT)
-
-choicedata.group.choice = choicedata %>% 
-  group_by(subjID, Context, Context_order, ev.cut, Choice) %>% 
-  dplyr::summarise(rt.median = median(rt), ev = mean(ev), prob_late = mean(choice))
-
-choicedata.group.choice = choicedata.group.choice%>%
-  group_by(Context, ev.cut, Context_order, Choice) %>% 
-  dplyr::summarise(rt.mean = mean(rt.median), rt.sem = sd(rt.median), 
-            prob_late.mean = mean(prob_late), prob_late.sem = sd(prob_late),
-            ev = mean(ev))
-
-# separate by choice
-myplot.RT.choice = ggplot(data = choicedata.group.choice, aes(x = ev, y = rt.mean, ymin = rt.mean - rt.sem, ymax = rt.mean + rt.sem, color = Context, group = Context)) +
-  geom_line() + 
-  geom_point() + 
-  geom_errorbar(width=0.5) + 
-  xlab('Later amount ($)') + 
-  ylab('Response time (s)') + facet_grid(  Choice ~ Context_order) + theme(legend.position = 'bottom', legend.title = element_blank() ) 
-
-print(myplot.RT.choice)
-
-myplot.RT.choice = ggplot(data = choicedata, aes(x = cut(ev, breaks), y = log(rt), fill = Context)) +
-  geom_violin() + 
-  xlab('Later amount ($)') + 
-  ylab('Response time (s)') +  theme(legend.position = 'bottom', legend.title = element_blank() ) #facet_grid(  . ~ Context_order)
-
-print(myplot.RT.choice)
-
-
-myplot.RT.choice = ggplot(data = subset(choicedata, amount_later >2.5 & amount_later < 7.5), aes(x = Context_order, y = rt, fill = Context)) +
-  geom_violin() + 
-  xlab('Later amount ($)') + 
-  ylab('Response time (s)') +  theme(legend.position = 'bottom', legend.title = element_blank() ) #facet_grid(  . ~ Context_order)
-
-print(myplot.RT.choice)
-
-myplot = ggplot(data = choicedata, aes(x = cut(ev, breaks), y = log(rt), fill = context)) +
-  geom_violin() + 
-  xlab('Subjective value of later amount ($)') + 
-  ylab('Response time (s)') + ylim(-5, 5)
-
-#print(myplot)
-
-choicedata$amount_later_centered.2 = choicedata$amount_later_centered^2  
-#model = lmer(log(rt) ~ context  + context_order + (1|subjID), data = choicedata)
-#print(summary(model))
-
-#model = lmer(log(rt) ~ context*(amount_later_centered + amount_later_centered.2)  + context_order + (1 + amount_later_centered|subjID), data = choicedata)
-#print(summary(model))
-
-fitmodel = function(ff, data, family=NULL, param = "contextc2")
-{
-  print(ff)
-
-  for (i in seq(2)){
-  data.sub = subset(data, context_order == i)
-  print(dim(data.sub))
-  if (is.null(family)){ 
-  model = lmer(as.formula(ff), data = data.sub)
-  } else {
-  model = glmer(as.formula(ff), data = data.sub, family = family)
-  }   
-#  print(summary(model))
-  vals = summary(model)$coefficients[param, ] 
-  print(paste("Context order", i))
-  print(vals)
-  if (is.null(family)){ 
-    pval = vals[5]
-  } else {
-    pval = vals[4]
-  }   
-  
-  if ( pval < 1e-10){ pstr = "p > 1e-10"}
-  else if (pval  < 1e-3){ pstr = paste("p =", formatC(pval ,  digits=1, format="e"))}
-  else { pstr = paste("p =", round(pval,  digits=3))}
-  
-  print(sprintf("b = %f, t = %f, df = %f, %s", round(vals[1], digits=3), round(vals[4],  digits=3), round(vals[3], digits=1), pstr))
-  }
-  
-  return(model)
-    }
-
-fitmodel("log(rt) ~ context + (1|subjID)", choicedata)
-fitmodel("log(rt) ~ context*(amount_later_centered + amount_later_centered.2)  + (1 |subjID)", choicedata)
-
-fitmodel("log(rt.median) ~ context + (1|subjID)", choicedata.median)
-fitmodel("log(rt.median) ~ context*(ev)  + (1 |subjID)", choicedata.median)
-
+source('./RTanalysis.R')
 ```
 
 ## Check distribution of context order and Context
@@ -277,146 +192,44 @@ choicedata.order = choicedata.order %>% group_by(Context, context, context_order
 print(choicedata.order)
 ```
 
-## Frequency of later option across contexts
-```{r}
-choicedata.choice = choicedata %>% group_by(subjID, Context, context, context_order) %>% summarise(proportion = mean(choice))
-myplot = ggplot(data = choicedata.choice, aes(x = Context,  y = proportion)) + geom_violin() + xlab('Context') + 
-  ylab('Frequency of later option') + facet_grid(. ~ context_order )
-print(myplot)
-
-model = lmer(proportion ~ context + context_order + (1 |subjID), data = choicedata.choice)
-print(summary(model))
-
-```
-
-
-
 ## Check probabilities
 
 ```{r}
-myplot.choiceprob = ggplot(data = choicedata.group, aes(x = ev, y = prob_late.mean, ymin = prob_late.mean - prob_late.sem, ymax = prob_late.mean + prob_late.sem, color = Context, ratinggroup = Context)) +
-  geom_line() + 
-  geom_point() + 
-  geom_errorbar(width=0.5) + 
-  xlab('Later amount ($)') + 
-  ylab('Frequency of later option') + theme(legend.position = 'bottom', legend.title = element_blank() ) + facet_grid( .~ Context_order )
+myplot.choiceprob = ggplot(
+  data = choicedata.group,
+  aes(
+    x = ev,
+    y = prob_late.mean,
+    ymin = prob_late.mean - prob_late.sem,
+    ymax = prob_late.mean + prob_late.sem,
+    color = Context
+  )
+) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(width = 0.5) +
+  xlab('Later amount ($)') +
+  ylab('Frequency of later option') + theme(legend.position = 'bottom', legend.title = element_blank()) + facet_grid(. ~ Group)
 
 print(myplot.choiceprob)
 
-# model = glmer(choice ~ context*(amount_later_centered + amount_later_centered.2)  + context_order + (1 + amount_later_centered|subjID), data = choicedata, family = 'binomial' )
-# print(summary(model))
-fitmodel("choice ~ context*amount_later_centered + (1 + amount_later_centered|subjID)", choicedata, family = 'binomial', param = "contextc2:amount_later_centered") 
-#plot(model)
+model = fitmodel("choice ~ Group*Context*amount_later_centered + (1|subjID)", choicedata, c("ContextLow volatility", "GroupLow first:ContextLow volatility", "GroupLow first:amount_later_centered", "ContextLow volatility:amount_later_centered"), family = 'binomial')
+print(summary(model))
+
+
 ```
 
 
 ## Plot ratings in relation to estimated subjective value
 ```{r}
-ratingdata.sub$bid.diff = ratingdata.sub$bid.high - ratingdata.sub$bid.low
-
-ratingdata.sub$bid.rt.max = apply(ratingdata.sub[ c('bid.high.rt', 'bid.low.rt') ], 1, max)
-ratingdata.sub$bid.rt.min = apply(ratingdata.sub[ c('bid.high.rt', 'bid.low.rt') ], 1, min)
-
-ratingdata.sub = ratingdata.sub %>% 
-  mutate(bid.rt.second = bid.rt.max - bid.rt.min,
-         bid.rt.first = bid.rt.min)
-
-
-#remove outliers
-ratingdata.sub = ratingdata.sub %>% group_by(amount_later) %>% mutate(bid.diff.outlier = markoutliersIQR(log(bid.diff)),
-                                                                      bid.rt.outlier = markoutliersIQR(log(bid.rt.max)))
-ratingdata.sub.clean = subset(ratingdata.sub, bid.diff.outlier == F & bid.rt.outlier == F )
-
-
-ratingdata = merge(ratingdata.sub.clean, allIndPars %>% filter(subjID %in% include_subjects), by = c('subjID', 'context', 'context_num', 'Context_order', 'context_order', 'background_col', 'Context'))
-ratindata = subset(ratingdata, subjID %in% include_subjects)
-ratingdata = ratingdata %>% mutate( ev = amount_later, bid.diff = (bid.high - bid.low )) 
-
-myplot = ggplot(data = ratingdata, aes(x = ev, y = bid.diff, color = context, group = subjID)) +
-  geom_line() + 
-  geom_point() + 
-  xlab('Subjective value of later amount ($)') + 
-  ylab('Price range') + facet_grid(Context ~ Context_order)
-print(myplot)
-
-ratingdata.mean = ratingdata %>% 
-  group_by(subjID, Context, Context_order, amount_later) %>% 
-  summarise(bid.diff = mean(bid.diff), ev = mean(ev))
-
-ratingdata.group = ratingdata.mean %>% 
-  group_by(Context, Context_order, amount_later) %>% 
-  summarise(bid.diff.mean = mean(bid.diff), bid.diff.sem = sem(bid.diff), ev = mean(ev))
-
-myplot.range = ggplot(data = ratingdata.group, aes(x = ev, y = bid.diff.mean, ymin = bid.diff.mean - bid.diff.sem, ymax = bid.diff.mean + bid.diff.sem, group = Context,  col = Context)) +
-  geom_line() + 
-  geom_point() + 
-  geom_errorbar() + 
-  xlab('Subjective value of later amount ($)') + 
-  ylab('Willingness-to-pay range ($)') + facet_grid(. ~ Context_order)
-
-print(myplot.range)
-
-model.diff = lmer(bid.diff ~ Context_order*context*amount_later_centered +  (1 + amount_later_centered | subjID), 
-             data = ratingdata )
-print(summary(model.diff))
-model.diff = fitmodel("bid.diff ~ context*amount_later_centered +  (1 + amount_later_centered | subjID)", ratingdata, param = "contextc2:amount_later_centered")
-# model.high = lmer(bid.high ~ context*amount_later_centered + (1 + amount_later_centered | subjID), 
-#              data = ratingdata)
-# print(summary(model.high))
-# 
-# model.low = lmer(bid.low ~ context*amount_later_centered  + (1 + amount_later_centered | subjID), 
-#              data = ratingdata)
-# print(summary(model.low))
-
+source('RatingAnalysis.R')
 ```
 
 ## Rating RT
 ```{r}
-mypars.rt = c('key.rt') #, 'bid.rt.max', 'bid.rt.min',  'bid.rt.second', 'bid.rt.first')
+# remove outliers?
+source("./RatingRTanalysis.R")
 
-ratingdata$amount_later_centered.2 = ratingdata$amount_later_centered^2  
-cor.est = cor.p = NULL
-for (mypar in mypars.rt){
-  print("------------------------------------")
-  print(mypar )
-  myform = formula(paste(paste0('log(', mypar, ')'), "context*(amount_later_centered + amount_later_centered.2) + context_order + background_col + (1 + amount_later_centered | subjID)", sep = "~"))
-  model.rt = lmer(myform, data = ratingdata) 
-  print(myform)
-  print(summary(model.rt))
-  # Random slopes of rating RTs vs DDM parameters
-  #RFX = ranef(model.rt)$subjID 
-  #RFX$subjID = rownames(RFX)
-  #RFX = merge(RFX, allIndPars, by = "subjID")
-  #cor.est = cbind(cor.est, sapply(RFX[mypars], function(x) cor.test(x, RFX$amount_later_centered)$estimate ))
-  #cor.p = cbind(cor.p, sapply(RFX[mypars], function(x) cor.test(x, RFX$amount_later_centered)$p.value))
-}
-#colnames(cor.est) = colnames(cor.p) = mypars.rt
-myplot = ggplot(data = ratingdata, aes(x = Context, y = key.rt/1000, fill = Context)) +
-  geom_violin() + 
-  xlab('Context') +
-  ylab('Response time') + facet_grid( .~ context_order )
-print(myplot)
-
-ratingdata.group = ratingdata %>% 
-  group_by(Context, context_order, amount_later) %>% 
-  summarise(key.rt.mean = mean(key.rt)/1000,key.rt.sem = sd(key.rt)/1000, ev = mean(ev))
-
-
-myplot.key.rt = ggplot(data = ratingdata.group, aes(x = ev, y = key.rt.mean, ymin = key.rt.mean - key.rt.sem, ymax = key.rt.mean + key.rt.sem, color = Context)) +
-  geom_line() + 
-  geom_point() + 
-  geom_errorbar() + 
-  xlab('Subjective value of later amount ($)') + 
-  ylab('Response time (s)') + facet_grid( .~ context_order )
-
-print(myplot.key.rt)
-
-
-myplot = ggplot(data = ratingdata, aes(x = as.factor( amount_later_centered), y = bid.rt.second/1000, fill = Context)) +
-  geom_boxplot() + 
-  xlab('Amount') +
-  ylab('Response time') + facet_grid( context_order ~ . )
-print(myplot)
 ```
 
 ## Random slopes of ratings vs DDM parameters
@@ -427,12 +240,12 @@ main.mat = inter.mat = NULL
 mypars.rating = c("bid.diff") #bid.high", "bid.low")
 for (mypar.rating in mypars.rating){
 for (mypar in mypars){
-     myformula = as.formula(sprintf("%s ~ scale(%s)*context*amount_later_centered + context_order + (1 + amount_later_centered | subjID)", mypar.rating, mypar)) 
+     myformula = as.formula(sprintf("%s ~ scale(%s)*Group*Context*amount_later_centered + (1| subjID)", mypar.rating, mypar)) 
      model = lmer(myformula, data = ratingdata)
      ss = summary(model)
      print(myformula)
-     
-     ss.1 = coef(ss)[7, c("t value", "Pr(>|t|)")]
+    # print(ss)
+     ss.1 = coef(ss)[9, c("t value", "Pr(>|t|)")]
      ss.2 = coef(ss)[9, c("t value", "Pr(>|t|)")]
      main.mat = rbind(main.mat, c(mypar.rating, mypar, round(ss.1, 3)))
      inter.mat = rbind(inter.mat, c(mypar.rating, mypar, round(ss.2, 3)))
@@ -458,7 +271,7 @@ print(myplot.main.amount)
 
 ```{r, fig.width = 15}
 
-allIndPars.melt = melt(allIndPars %>% filter(subjID %in% include_subjects), id.vars = c("subjID", "Context", "context", "context_order"), variable.name = "parameter", value.name = "value") %>% filter(parameter %in% mypars) %>%mutate(value = as.numeric(value), parameter_label = par_labels[parameter])
+allIndPars.melt = melt(allIndPars %>% filter(subjID %in% include_subjects), id.vars = c("subjID", "Context", "context", "context_order", "Group"), variable.name = "parameter", value.name = "value") %>% filter(parameter %in% mypars) %>%mutate(value = as.numeric(value), parameter_label = par_labels[parameter])
 myplot.reliab = ggplot(allIndPars.melt, aes(x = Context, y = value, group = subjID)) + geom_line(size = 0.4) + geom_point(size = 0.6) +
   ylab('Parameter value') + 
   xlab('Volatility') + 
@@ -478,7 +291,7 @@ for ( mypar in mypars){
   plot(value.corr ~ value, allIndPars.melt %>% filter(parameter == mypar) )
 }
 ```
-
+# Parameter tests
 
 ```{r, fig.width = 15}
 allIndPars.diff = merge(subset(allIndPars.melt, context == 'c1'), subset(allIndPars.melt, context == 'c2'), by = c('subjID', 'parameter'), suffixes = c('.c1', '.c2')) %>% mutate(value.corr = value.corr.c2 - value.corr.c1, c1_first = context_order.c1 == 1)
@@ -489,11 +302,11 @@ print(myplot)
 myplot = ggplot(allIndPars.diff, aes(x=0, y = value.corr)) + geom_violin() + geom_point(position = "jitter") + facet_wrap( . ~ parameter, scales = "free" )
 print(myplot)
 
-allIndPars.sum <- summarySE(allIndPars.melt, measurevar="value.corr", groupvars=c("Context", "context", "parameter_label", "context_order"))
+allIndPars.sum <- summarySE(allIndPars.melt, measurevar="value.corr", groupvars=c("Context", "context", "parameter_label", "context_order", "Group"))
 
 # Standard error of the mean
 
-myplot.differences = ggplot(allIndPars.sum, aes(x = context_order, y=value.corr, ymin = value.corr-se, ymax = value.corr+se, col = Context, group = Context)) + 
+myplot.differences = ggplot(allIndPars.sum, aes(x = Context, y=value.corr, ymin = value.corr-se, ymax = value.corr+se, col = Group, group = Group)) + 
     geom_point(position = position_dodge(0.5)) + 
     geom_errorbar(position = position_dodge(0.5)) +
     geom_line(position = position_dodge(0.5)) + 
@@ -505,17 +318,28 @@ myplot.differences = ggplot(allIndPars.sum, aes(x = context_order, y=value.corr,
 print(myplot.differences)
 
 myplot.differences.all = ggplot() + 
-    geom_line(data = allIndPars.melt, aes(x = Context, y = value, group = subjID), col = "gray", size = 0.5) + 
-    geom_point(data = allIndPars.melt, aes(x = Context, y = value, group = subjID), col = "gray") +
-    geom_line(data = allIndPars.sum, aes(x=Context, y=value.corr)) + 
-    geom_point(data = allIndPars.sum, aes(x=Context, y=value.corr)) + 
-    geom_errorbar(data = allIndPars.sum, aes(ymin = value.corr-se, ymax = value.corr+se, x=Context, y=value.corr), width=.1) +
+    geom_line(data = allIndPars.melt, aes(x = context_order, y = value, group = subjID, col = Context), size = 0.2, alpha = 0.4) + 
+    geom_point(data = allIndPars.melt, aes(x = context_order, y = value, group = subjID, col = Context), size = 0.5, alpha = 0.4) +
+    geom_line(data = allIndPars.sum, aes(col=Context, y=value.corr, x = Group), size = 1) + 
+    geom_point(data = allIndPars.sum, aes(col=Context, y=value.corr, x = Group), size = 1) + 
+    geom_errorbar(data = allIndPars.sum, aes(ymin = value.corr-se, ymax = value.corr+se, col=Context, y=value.corr, x = Group), width=0.2, size = 1) +
     ylab('Parameter value') + 
     xlab('') + 
     facet_wrap(.~ parameter_label, scales = 'free', nrow = 1)
 print(myplot.differences.all)
 
 allIndPars.sum <- summarySE(allIndPars.diff, measurevar="value.corr", groupvars=c( "parameter"))
+```
+```{r}
+
+allIndPars.good = allIndPars %>% filter(subjID %in% include_subjects)
+parameters = c("nondectime.p", "b.drift.intercept.p", "b.drift.amount.p", "noise.p", "bias.p")
+
+for (parameter in parameters){ 
+  model = fitmodel(sprintf("%s ~ Group * Context + (1|subjID)", parameter), allIndPars%>% filter(subjID %in% include_subjects), c("ContextLow volatility", "GroupLow first:ContextLow volatility"))
+                   }
+print(summary(model))
+
 ```
 
 
