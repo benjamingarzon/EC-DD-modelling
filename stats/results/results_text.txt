@@ -1,0 +1,10 @@
+Behavioural measures
+As we had hypothesized (H1), there was a significant main effect of context on (log) response times of the first phase (choices), with shorter times for the low-volatility condition (_RT_context_; Figure 2A). The interaction group x context was also significant (_RT_groupxcontext_). Response times showed a dependence on the later amount offered and whether the response was immediate or  (Figure 2B) but the effect of context remained significant even when controlling for these effects (_RTamountchoice_context). There was a main effect of context on choices (_choice_context_; Figure 2C), with a lower probability of choosing the later option in the low volatility context, but the interaction with the later amount offered was not significant (_choice_contextxamount_). Preregistered hypothesis H2 was thus not confirmed, although the effect.  blah blah.
+
+DDM parameters
+The DDM parameters showed stability across contexts (Figure 2D; parameter reliabilities are displayed in Table 1). We found an effect of context on non-decision times derived from the DDM fits, with slower times for the low-volatility context, confirming hypothesis H3 (_nondectime.p_context_). Drift sensitivity was significantly higher in the low-volatility context (_b.drift.amount.p_context), thus supporting hypothesis H4. In the low-volatility context, the noise parameter was significantly larger (_noise.p_context_) and the bias smaller (_bias.p_context_), compared with the high-volatility context. No significant differences between conditions were detected for the drift intercept parameter (_b.drift.intercept.p_context_).
+
+WTP ranges
+Finally, contrary to our expectation there was no significant effect of context on WTP range (hypothesis H5; Figure 3A).  
+
+As an additional exploratory analysis an in view of this negative finding, to ascertain whether the ratings we sought to find associations between DDM parameters and WTP ranges, to ascertain whether 

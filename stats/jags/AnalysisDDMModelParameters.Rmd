@@ -4,6 +4,8 @@
 rm(list = ls())
 source("../analysis_funcs.R")
 
+statslist = list()
+
 WD = '../../data'
 WDD = file.path(WD, 'experiment')
 mytheme = theme_classic(base_size = 13) + theme(legend.position = 'bottom', legend.title = element_blank())
@@ -213,16 +215,24 @@ myplot.choiceprob = ggplot(
 
 print(myplot.choiceprob)
 
-model = fitmodel("choice ~ Group*Context*amount_later_centered + (1|subjID)", choicedata, c("ContextLow volatility", "GroupLow first:ContextLow volatility", "GroupLow first:amount_later_centered", "ContextLow volatility:amount_later_centered"), family = 'binomial')
+model = fitmodel(
+  "choice ~ Group*Context*amount_later_centered + (1|subjID)",
+  choicedata,
+  c(
+    "_choice_context_" = "ContextLow volatility",
+    "_choice_groupxcontext_" = "GroupLow first:ContextLow volatility",
+    "_choice_groupxamount_" = "GroupLow first:amount_later_centered",
+    "_choice_contextxamount_" = "ContextLow volatility:amount_later_centered"
+  ),
+  family = 'binomial'
+)
 print(summary(model))
-
-
 ```
 
 
 ## Plot ratings in relation to estimated subjective value
 ```{r}
-source('RatingAnalysis.R')
+source('./RatingAnalysis.R')
 ```
 
 ## Rating RT
@@ -326,18 +336,30 @@ myplot.differences.all = ggplot() +
     ylab('Parameter value') + 
     xlab('') + 
     facet_wrap(.~ parameter_label, scales = 'free', nrow = 1)
-print(myplot.differences.all)
+#print(myplot.differences.all)
 
 allIndPars.sum <- summarySE(allIndPars.diff, measurevar="value.corr", groupvars=c( "parameter"))
 ```
 ```{r}
 
 allIndPars.good = allIndPars %>% filter(subjID %in% include_subjects)
-parameters = c("nondectime.p", "b.drift.intercept.p", "b.drift.amount.p", "noise.p", "bias.p")
+parameters = c("nondectime.p",
+               "b.drift.intercept.p",
+               "b.drift.amount.p",
+               "noise.p",
+               "bias.p")
 
-for (parameter in parameters){ 
-  model = fitmodel(sprintf("%s ~ Group * Context + (1|subjID)", parameter), allIndPars%>% filter(subjID %in% include_subjects), c("ContextLow volatility", "GroupLow first:ContextLow volatility"))
-                   }
+tests = c("ContextLow volatility",
+          "GroupLow first:ContextLow volatility")
+for (parameter in parameters) {
+  names(tests) = c(sprintf("_%s_context_", parameter),
+                   sprintf("_%s_groupxcontext_", parameter))
+  model = fitmodel(
+    sprintf("%s ~ Group * Context + (1|subjID)", parameter),
+    allIndPars %>% filter(subjID %in% include_subjects),
+    tests
+  )
+}
 print(summary(model))
 
 ```
@@ -382,21 +404,41 @@ DPI = 600
 
 FIGS_DIR = '../figs'
 
-fig.a1 = ggarrange(myplot.RT, myplot.RT.choice, myplot.choiceprob, ncol=3, nrow=1, labels = c('A', 'B', 'C'))
-fig.a2 = ggarrange(myplot.reliab, myplot.differences, ncol=1, nrow=2, labels = c('D', 'E'))
-fig.a = ggarrange(fig.a1, fig.a2, ncol=1, nrow=2, heights = c(1, 2))
-ggsave(filename=file.path(FIGS_DIR, "Choices.png"), plot = fig.a, dpi = DPI, width = WIDTH1COL*3, height = HEIGHT1ROW*3)
+fig.a1 = ggarrange(myplot.RT.choice, myplot.choiceprob, ncol=2, nrow=1, labels = c('A', 'B'))
+fig.a2 = ggarrange(myplot.differences, ncol=1, nrow=1, labels = c('C'))
+fig.a = ggarrange(fig.a1, fig.a2, ncol=1, nrow=2, heights = c(1, 1))
+ggsave(filename=file.path(FIGS_DIR, "Choices.png"), plot = fig.a, dpi = DPI, width = WIDTH1COL*3, height = HEIGHT1ROW*2)
 
 
 fig.b = ggarrange(myplot.range, myplot.key.rt, ncol=2, nrow=1, labels = c('A', 'B'))
 ggsave(filename=file.path(FIGS_DIR, "Ratings.png"), plot = fig.b, dpi = DPI, width = WIDTH1COL*2, height = HEIGHT1ROW)
 
 
-ggsave(filename=file.path(FIGS_DIR, "Correlations.png"), plot = myplot.pairs, dpi = DPI, width = WIDTH1COL*2, height = HEIGHT1ROW*2)
+#ggsave(filename=file.path(FIGS_DIR, "Correlations.png"), plot = myplot.pairs, dpi = DPI, width = WIDTH1COL*2, height = HEIGHT1ROW*2)
 
+print(fig.a)
+print(fig.b)
+#print(fig.c)
 
 ```
 
 
 
+```{r}
+filein = '../results/results_text.txt'
+fileout = '../results/results_text_fixed.txt'
+text = readLines(filein)
+print(statslist)
+text.new = NULL
+placeholders = names(statslist)
+for (line in text){ 
+for (placeholder in placeholders){
+  line = gsub(placeholder, replacement = statslist[placeholder], line)
+}
+text.new = c(text.new, line)
+
+}
+unlink(fileout)
+writeLines(text.new, con = fileout, )
+```
 

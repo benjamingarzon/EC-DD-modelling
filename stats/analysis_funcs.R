@@ -47,9 +47,6 @@ reformat = function(x) {
   ifelse(!is.na(as.numeric(x)), round(as.numeric(x), 2), x)
 }
 
-
-
-
 ########################################################################################################
 # plot ratings vs delayed amount
 ########################################################################################################
@@ -290,4 +287,70 @@ get_par_jags = function(par, var, var2=NULL, ylimit=NULL){
   if (!is.null(var2)) myplot = myplot + facet_grid(. ~ z)
   if(!is.null(ylimit)) myplot = myplot + ylim(ylimit)
   print(myplot)
+}
+
+
+get_stats = function(model, param, family) {
+  print("------------")
+  print(param)
+  vals = summary(model)$coefficients[param,]
+  #print(vals)
+  if (is.null(family)) {
+    pval = vals[5]
+    out = sprintf(
+      "b = %s, t = %s, df = %s,",
+      round(vals[1], digits = 3),
+      round(vals[4],  digits = 3),
+      round(vals[3], digits = 1)
+    )
+  } else {
+    pval = vals[4]
+    out = sprintf(
+      "b = %s, z = %s,",
+      round(vals[1], digits = 3),
+      round(vals[3],  digits = 3)
+    )
+  }
+  
+  if (pval < 1e-10) {
+    pstr = "p < 1e-10"
+  }
+  else if (pval  < 1e-3) {
+    pstr = paste("p =", formatC(pval ,  digits = 1, format = "e"))
+  }
+  else {
+    pstr = paste("p =", round(pval,  digits = 3))
+  }
+  
+  out = paste(out, pstr)
+  print(names(param))
+  statslist[names(param)] <<- out
+  print(out)
+}
+
+fitmodel = function(ff,
+                    data.sub,
+                    params,
+                    family = NULL,
+                    uselm = F)
+{
+  print("============")
+  
+  print(ff)
+  
+  if (uselm) {
+    model = lm(as.formula(ff), data = data.sub)
+  } else {
+    if (is.null(family)) {
+      model = lmer(as.formula(ff), data = data.sub)
+    } else {
+      model = glmer(as.formula(ff), data = data.sub, family = family)
+    }
+    
+  }
+  #print(summary(model))
+  for (i in seq(length(params))){
+    get_stats(model, params[i], family)
+    }
+  return(model)
 }
