@@ -354,3 +354,9 @@ fitmodel = function(ff,
     }
   return(model)
 }
+
+tab_to_str = function(mytable){
+  write.table(mytable, '../results/tmp.csv', sep = ';', row.names = F)
+  return(paste(readLines('../results/tmp.csv'), collapse = '\n'))
+} 
+

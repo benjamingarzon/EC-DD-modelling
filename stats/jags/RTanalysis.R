@@ -28,7 +28,6 @@ myplot.RT = ggplot(data = choicedata, aes(
 
 print(myplot.RT)
 
-# outliers removed beforehand
 choicedata.median = choicedata %>%
   group_by(subjID,
            Context,
@@ -102,7 +101,7 @@ myplot.RT = ggplot(
   geom_point() +
   geom_errorbar(width = 0.5) +
   xlab('Later amount ($)') +
-  ylab('Response time (s)') + facet_grid(. ~ Group)
+  ylab('Response time (s)') + facet_grid(. ~ Context_order)
 
 print(myplot.RT)
 
@@ -140,9 +139,12 @@ myplot.RT.choice = ggplot(
   geom_point() +
   geom_errorbar(width = 0.5) +
   xlab('Later amount ($)') +
-  ylab('Response time (s)') + facet_grid(Choice ~ Group) + theme(legend.position = 'bottom', legend.title = element_blank())
+  ylab('Response time (s)') + theme(legend.position = 'bottom', legend.title = element_blank())
 
-print(myplot.RT.choice)
+myplot.RT.choice.order = myplot.RT.choice + facet_grid(Choice ~ Context_order)
+myplot.RT.choice.group = myplot.RT.choice + facet_grid(Choice ~ Group)
+print(myplot.RT.choice.order)
+print(myplot.RT.choice.group)
 
 # myplot.RT.choice = ggplot(data = choicedata, aes(
 #   x = cut(ev, breaks),
@@ -177,14 +179,56 @@ myplot = ggplot(data = choicedata, aes(
   ylab('Response time (s)') + ylim(-5, 5)
 
 #print(myplot)
-
-choicedata$amount_later_centered.2 = choicedata$amount_later_centered ^
-  2
+#choicedata$amount_later_centered.2 = choicedata$amount_later_centered ^ 2
 
 model = fitmodel(
-  "log(rt) ~ Group*Context + (1|subjID)",
-  choicedata,
-  c("_RT_context_" = "ContextLow volatility", 
-    "_RT_groupxcontext_" = "GroupLow first:ContextLow volatility")
-)
-print(summary(model))
+   "log(rt) ~ Group*Context + (1|subjID)",
+   choicedata,
+   c("_RT_context_" = "ContextLow volatility", 
+     "_RT_groupxcontext_" = "GroupLow first:ContextLow volatility")
+ )
+
+cc = fixef(model)["GroupLow first:ContextLow volatility"]
+mm = model.matrix(model)
+
+choicedata$rt.pred = exp(log(choicedata$rt) - cc*mm[, "GroupLow first:ContextLow volatility"])
+
+choicedata.median = choicedata %>%
+  group_by(subjID,
+           Context,
+           context,
+           ev.cut) %>%
+  dplyr::summarise(
+    rt.median = median(rt.pred),
+    ev = mean(ev),
+    prob_late = mean(choice)
+  )
+
+choicedata.group.agg = choicedata.median %>%
+  group_by(Context, ev.cut) %>%
+  dplyr::summarise(
+    rt.mean = mean(rt.median),
+    rt.sem = sem(rt.median),
+    prob_late.mean = mean(prob_late),
+    prob_late.sem = sem(prob_late),
+    ev = mean(ev)
+  )
+
+myplot.RT = ggplot(
+  data = choicedata.group.agg,
+  aes(
+    x = ev,
+    y = rt.mean,
+    ymin = rt.mean - rt.sem,
+    ymax = rt.mean + rt.sem,
+    color = Context,
+    group = Context
+  )
+) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(width = 0.5) +
+  xlab('Later amount ($)') +
+  ylab('Response time (s)') 
+
+print(myplot.RT)

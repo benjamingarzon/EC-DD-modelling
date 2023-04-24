@@ -72,9 +72,13 @@ myplot.range = ggplot(
   geom_point() +
   geom_errorbar(width = 0.5) +
   xlab('Subjective value of later amount ($)') +
-  ylab('Willingness-to-pay range ($)') + facet_grid(. ~ Group)
+  ylab('Willingness-to-pay range ($)') 
 
-print(myplot.range)
+myplot.range.group = myplot.range + facet_grid(. ~ Group)
+myplot.range.order = myplot.range + facet_grid(. ~ Context_order)
+  
+print(myplot.range.group)
+print(myplot.range.order)
 
 model = fitmodel(
   "bid.diff ~ Group*amount_later_centered + (1|subjID)",
@@ -91,7 +95,46 @@ model = fitmodel(
     "_Rating_context_" = "ContextLow volatility",
     "_Rating_groupxcontext_" = "GroupLow first:ContextLow volatility",
     "_Rating_groupxev_" = "GroupLow first:ev",
-    "_Rating_contextxev_" = "ContextLow volatility:ev"
+    "_Rating_contextxev_" = "ContextLow volatility:ev",
+    "_Rating_groupxcontextxev_" = "GroupLow first:ContextLow volatility:ev"
   )
 )
 print(summary(model))
+
+cc.main = fixef(model)["GroupLow first:ContextLow volatility"]
+cc.inter= fixef(model)["GroupLow first:ContextLow volatility:ev"]
+mm = model.matrix(model)
+
+ratingdata$bid.diff.pred = ratingdata$bid.diff - cc.main*mm[,"GroupLow first:ContextLow volatility"]  - 
+  cc.inter*mm[,"GroupLow first:ContextLow volatility:ev"] 
+
+ratingdata.mean.agg = ratingdata %>%
+  group_by(subjID, Context, amount_later) %>%
+  summarise(bid.diff = mean(bid.diff.pred), ev = mean(ev))
+
+ratingdata.group.agg = ratingdata.mean.agg %>%
+  group_by(Context, amount_later) %>%
+  summarise(
+    bid.diff.mean = mean(bid.diff),
+    bid.diff.sem = sem(bid.diff),
+    ev = mean(ev)
+  )
+
+myplot.range.agg = ggplot(
+  data = ratingdata.group.agg,
+  aes(
+    x = ev,
+    y = bid.diff.mean,
+    ymin = bid.diff.mean - bid.diff.sem,
+    ymax = bid.diff.mean + bid.diff.sem,
+    group = Context,
+    col = Context
+  )
+) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(width = 0.5) +
+  xlab('Subjective value of later amount ($)') +
+  ylab('Willingness-to-pay range ($)') 
+
+print(myplot.range.agg)

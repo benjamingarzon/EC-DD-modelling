@@ -44,6 +44,7 @@ choicedata.common = choicedata.common %>% mutate(
 ratingdata.sub = ratingdata.sub %>% mutate(
   Context = ifelse(context == 'c1', 'High volatility', 'Low volatility'),
   Context_order = ifelse(context_order == 1, 'First context', 'Second context'),
+  key.rt = key.rt/1000,
   Group =  ifelse(
     context_order == 1 &
       context == 'c1' |
@@ -190,43 +191,14 @@ source('./RTanalysis.R')
 ## Check distribution of context order and Context
 ```{r}
 choicedata.order = choicedata %>% group_by(subjID) %>% slice_head(n=1) 
-choicedata.order = choicedata.order %>% group_by(Context, context, context_order) %>% summarise(size = n())
+choicedata.order = choicedata.order %>% group_by(Context, context, context_order, Context_order) %>% summarise(size = n())
 print(choicedata.order)
 ```
 
 ## Check probabilities
 
 ```{r}
-myplot.choiceprob = ggplot(
-  data = choicedata.group,
-  aes(
-    x = ev,
-    y = prob_late.mean,
-    ymin = prob_late.mean - prob_late.sem,
-    ymax = prob_late.mean + prob_late.sem,
-    color = Context
-  )
-) +
-  geom_line() +
-  geom_point() +
-  geom_errorbar(width = 0.5) +
-  xlab('Later amount ($)') +
-  ylab('Frequency of later option') + theme(legend.position = 'bottom', legend.title = element_blank()) + facet_grid(. ~ Group)
-
-print(myplot.choiceprob)
-
-model = fitmodel(
-  "choice ~ Group*Context*amount_later_centered + (1|subjID)",
-  choicedata,
-  c(
-    "_choice_context_" = "ContextLow volatility",
-    "_choice_groupxcontext_" = "GroupLow first:ContextLow volatility",
-    "_choice_groupxamount_" = "GroupLow first:amount_later_centered",
-    "_choice_contextxamount_" = "ContextLow volatility:amount_later_centered"
-  ),
-  family = 'binomial'
-)
-print(summary(model))
+source('./ChoiceAnalysis.R')
 ```
 
 
@@ -245,35 +217,110 @@ source("./RatingRTanalysis.R")
 ## Random slopes of ratings vs DDM parameters
 
 ```{r}
-main.mat = inter.mat = NULL
+rating_par_names = c("bid.diff" = "WTP range", "key.rt" = "WTP response time")
+choice_par_names = c("b.drift.intercept.p" = "Drift intercept", "b.drift.amount.p" = "Drift sensitivity",
+                        "noise.p" = "Noise", "bias.p" = "Bias",
+                        "nondectime.p" = "Non-decision time"
+                      )
 
-mypars.rating = c("bid.diff") #bid.high", "bid.low")
+main.mat = inter.mat = NULL
+#*Group*Context
+mypars.rating = c("bid.diff", "key.rt")
 for (mypar.rating in mypars.rating){
 for (mypar in mypars){
-     myformula = as.formula(sprintf("%s ~ scale(%s)*Group*Context*amount_later_centered + (1| subjID)", mypar.rating, mypar)) 
-     model = lmer(myformula, data = ratingdata)
+  for (co in c(1, 2)){
+     myformula = as.formula(sprintf("%s ~ scale(%s)*amount_later + Context + (1| subjID)", mypar.rating, mypar)) 
+     model = lmer(myformula, data = ratingdata %>% filter(context_order == co))
      ss = summary(model)
      print(myformula)
-    # print(ss)
-     ss.1 = coef(ss)[9, c("t value", "Pr(>|t|)")]
-     ss.2 = coef(ss)[9, c("t value", "Pr(>|t|)")]
-     main.mat = rbind(main.mat, c(mypar.rating, mypar, round(ss.1, 3)))
-     inter.mat = rbind(inter.mat, c(mypar.rating, mypar, round(ss.2, 3)))
-     
+     print(ss)
+     ss.1 = coef(ss)[sprintf("scale(%s)", mypar), c("Estimate", "t value", "df", "Pr(>|t|)")]
+     ss.2 = coef(ss)[sprintf("scale(%s):amount_later", mypar), c("Estimate", "t value", "df", "Pr(>|t|)")]
+     main.mat = rbind(main.mat, c(mypar.rating, mypar, co, round(ss.1, 3)))
+     inter.mat = rbind(inter.mat, c(mypar.rating, mypar, co, round(ss.2, 3)))
+  }
   } 
 } 
 main.mat = as.data.frame(main.mat)
-inter.mat = as.data.frame(inter.mat)
-colnames(main.mat) = colnames(main.mat) = c("rating_par", "choice_par", "t", "p")
+inter.mat = as.data.frame(inter.mat)##
+main.mat = main.mat%>% mutate(V1 = rating_par_names[as.character(V1)], V2 = choice_par_names[as.character(V2)])
+inter.mat = inter.mat%>% mutate(V1 = rating_par_names[as.character(V1)], V2 = choice_par_names[as.character(V2)])
+
+colnames(main.mat) = colnames(inter.mat) = c("WTP parameter", "DDM parameter", "Context order", "Estimate", "t", "df", "p-value")
 View(main.mat)
 View(inter.mat)
 
+#myplot.main.intercept = ggplot(ratingdata, aes(x = jitter(amount_later), y = b.drift.intercept.p, col = bid.diff )) + geom_point() + scale_color_viridis_c()
+#print(myplot.main.intercept)
+#myplot.main.amount = ggplot(ratingdata, aes(x = jitter(amount_later), y = b.drift.amount.p, col = bid.diff )) + geom_point() + scale_color_viridis_c()
+#print(myplot.main.amount)
+statslist['_table_range_main_'] = tab_to_str(main.mat)
+statslist['_table_range_inter_'] = tab_to_str(inter.mat)
 
-myplot.main.intercept = ggplot(ratingdata, aes(x = jitter(amount_later), y = b.drift.intercept.p, col = bid.diff )) + geom_point() + scale_color_viridis_c()
-print(myplot.main.intercept)
+```
 
-myplot.main.amount = ggplot(ratingdata, aes(x = jitter(amount_later), y = b.drift.amount.p, col = bid.diff )) + geom_point() + scale_color_viridis_c()
-print(myplot.main.amount)
+
+## Mediation of DDM parameters
+
+```{r}
+library(mediation)
+detach(package:lmerTest)
+rating_par_names = c("bid.diff" = "WTP range", "key.rt" = "WTP response time")
+choice_par_names = c("b.drift.intercept.p" = "Drift intercept", "b.drift.amount.p" = "Drift sensitivity",
+                        "noise.p" = "Noise", "bias.p" = "Bias",
+                        "nondectime.p" = "Non-decision time"
+                      )
+
+acme.mat = prop.mat = NULL
+#*Group*Context
+mypars.rating = c("bid.diff", "key.rt")
+for (mypar.rating in mypars.rating){
+for (mypar in mypars){
+     ratingdata$mediator = scale(ratingdata[mypar])
+     myformula.m = as.formula("mediator ~  Context*Group + (1| subjID)")
+     model.m = lmer(myformula.m, data = ratingdata )
+     if (mypar.rating == 'bid.diff') 
+       { 
+       myformula.b = as.formula(sprintf("%s ~ mediator*amount_later_centered + Context*Group + (1| subjID)", mypar.rating, mypar))
+       }
+     else
+       {
+       myformula.b = as.formula(sprintf("%s ~ mediator + Context*Group + (1| subjID)", mypar.rating, mypar))
+     } 
+     model.b = lmer(myformula.b, data = ratingdata)
+     med = mediate(model.m, model.b, treat = "Context", mediator = "mediator", boot = F,
+                   control.value="Low volatility", treat.value="High volatility")
+     #print(paste(mypar.rating, mypar))
+     #print(c(med$d0, med$d0.ci, med$d0.p ))
+     #print(c(med$tau.coef, med$tau.ci, med$tau.p ))
+     #print(c(med$n0, med$n0.ci, med$n0.p ))
+     
+     ss.acme = c(med$d0, med$d0.ci[1], med$d0.ci[2], med$d0.p)
+     #ss. = c(med$tau.coef, med$tau.ci[0], med$tau.ci[1], med$tau.p)
+     ss.prop = c(med$n0, med$n0.ci[1], med$n0.ci[2], med$n0.p)
+     acme.mat = rbind(acme.mat, c(mypar.rating, mypar, round(ss.acme, 3)))
+     prop.mat = rbind(prop.mat, c(mypar.rating, mypar, round(ss.prop, 3)))
+  }
+}
+
+acme.mat = as.data.frame(acme.mat)
+prop.mat = as.data.frame(prop.mat)##
+acme.mat = acme.mat%>% mutate(V1 = rating_par_names[as.character(V1)], V2 = choice_par_names[as.character(V2)])
+prop.mat = prop.mat%>% mutate(V1 = rating_par_names[as.character(V1)], V2 = choice_par_names[as.character(V2)])
+
+colnames(acme.mat) = c("WTP parameter", "DDM parameter", "ACME Estimate", "ACME  CI 2.5%", "ACME CI 97.5%", "p-value")
+colnames(prop.mat) = c("WTP parameter", "DDM parameter", "Proportion Estimate", "Proportion CI 2.5%", "Proportion CI 97.5%", "p-value")
+View(acme.mat)
+View(prop.mat)
+
+library(lmerTest)
+mediation.mat = cbind(acme.mat[, -6], prop.mat[, seq(3, 6)] )
+mediation.mat = subset(mediation.mat, `WTP parameter` == 'WTP response time')[-1] 
+
+statslist['_table_mediation_'] = tab_to_str(mediation.mat)
+statslist['_prop_drift_intercept_'] = as.numeric(as.character(mediation.mat[1, 5]))*100
+statslist['_prop_nondectime_'] = as.numeric(as.character(mediation.mat[4, 5]))*100
+statslist['_prop_noise_'] = as.numeric(as.character(mediation.mat[5, 5]))*100
 
 ```
 
@@ -316,7 +363,7 @@ allIndPars.sum <- summarySE(allIndPars.melt, measurevar="value.corr", groupvars=
 
 # Standard error of the mean
 
-myplot.differences = ggplot(allIndPars.sum, aes(x = Context, y=value.corr, ymin = value.corr-se, ymax = value.corr+se, col = Group, group = Group)) + 
+myplot.differences = ggplot(allIndPars.sum, aes(x = Group, y=value.corr, ymin = value.corr-se, ymax = value.corr+se, col = Context, group = Context)) + 
     geom_point(position = position_dodge(0.5)) + 
     geom_errorbar(position = position_dodge(0.5)) +
     geom_line(position = position_dodge(0.5)) + 
@@ -328,18 +375,19 @@ myplot.differences = ggplot(allIndPars.sum, aes(x = Context, y=value.corr, ymin 
 print(myplot.differences)
 
 myplot.differences.all = ggplot() + 
-    geom_line(data = allIndPars.melt, aes(x = context_order, y = value, group = subjID, col = Context), size = 0.2, alpha = 0.4) + 
-    geom_point(data = allIndPars.melt, aes(x = context_order, y = value, group = subjID, col = Context), size = 0.5, alpha = 0.4) +
-    geom_line(data = allIndPars.sum, aes(col=Context, y=value.corr, x = Group), size = 1) + 
-    geom_point(data = allIndPars.sum, aes(col=Context, y=value.corr, x = Group), size = 1) + 
-    geom_errorbar(data = allIndPars.sum, aes(ymin = value.corr-se, ymax = value.corr+se, col=Context, y=value.corr, x = Group), width=0.2, size = 1) +
+    geom_line(data = allIndPars.melt, aes(x = Context, y = value, group = subjID, col = Group), size = 0.2, alpha = 0.4) + 
+    geom_point(data = allIndPars.melt, aes(x = Context, y = value, col = Group), size = 0.5, alpha = 0.4) +
+    geom_line(data = allIndPars.sum, aes(x=Context, y=value.corr, col = Group, group = Group), size = 1) + 
+    geom_point(data = allIndPars.sum, aes(x=Context, y=value.corr, col = Group), size = 1) + 
+    geom_errorbar(data = allIndPars.sum, aes(ymin = value.corr-se, ymax = value.corr+se, x=Context, y=value.corr, col = Group), width=0.2, size = 1) +
     ylab('Parameter value') + 
-    xlab('') + 
+    xlab('Context') + 
     facet_wrap(.~ parameter_label, scales = 'free', nrow = 1)
-#print(myplot.differences.all)
+print(myplot.differences.all)
 
 allIndPars.sum <- summarySE(allIndPars.diff, measurevar="value.corr", groupvars=c( "parameter"))
 ```
+
 ```{r}
 
 allIndPars.good = allIndPars %>% filter(subjID %in% include_subjects)
@@ -385,12 +433,12 @@ print(myplot)
 options(width = 300)
 
 
-mydata = allIndPars %>% filter(subjID %in% include_subjects & nondectime.p <2)
+mydata = allIndPars %>% filter(subjID %in% include_subjects & nondectime.p < 2)
 cor(mydata[mypars])
 pairs(mydata[mypars])
+mydata$GroupContext = paste(mydata$Group, mydata$Context, sep = " - ")
 
-
-myplot.pairs <- ggpairs(mydata, columns = mypars, ggplot2::aes(colour=Context), columnLabels = par_labels)
+myplot.pairs <- ggpairs(mydata, columns = mypars, ggplot2::aes(colour=GroupContext), columnLabels = par_labels)
 print(myplot.pairs)
 ```
 
@@ -400,17 +448,26 @@ print(myplot.pairs)
 
 HEIGHT1ROW = 4.06
 WIDTH1COL = 3.8 
-DPI = 600
+DPI = 1000
 
 FIGS_DIR = '../figs'
 
-fig.a1 = ggarrange(myplot.RT.choice, myplot.choiceprob, ncol=2, nrow=1, labels = c('A', 'B'))
-fig.a2 = ggarrange(myplot.differences, ncol=1, nrow=1, labels = c('C'))
-fig.a = ggarrange(fig.a1, fig.a2, ncol=1, nrow=2, heights = c(1, 1))
-ggsave(filename=file.path(FIGS_DIR, "Choices.png"), plot = fig.a, dpi = DPI, width = WIDTH1COL*3, height = HEIGHT1ROW*2)
+fig.a1 = ggarrange(myplot.RT.choice.group, myplot.RT.choice.agg, 
+                   myplot.choiceprob.group, mylplt.choiceprob.agg, 
+                   ncol=2, nrow=2, labels = c('A', 'B', 'C', 'D'))
+
+ggsave(filename=file.path(FIGS_DIR, "Choices.png"), plot = fig.a, dpi = DPI, 
+       width = WIDTH1COL*3, height = HEIGHT1ROW*2)
+
+fig.b = ggarrange(myplot.differences, myplot.differences, ncol=1, nrow=2, labels = c('A', 'B'))
+#fig.a = ggarrange(fig.a1, fig.a2, ncol=1, nrow=2, heights = c(1, 1))
+
+ggsave(filename=file.path(FIGS_DIR, "Parameters.png"), plot = fig.b, dpi = DPI, width = WIDTH1COL*2, height = HEIGHT1ROW)
 
 
-fig.b = ggarrange(myplot.range, myplot.key.rt, ncol=2, nrow=1, labels = c('A', 'B'))
+fig.c = ggarrange(myplot.range.group, myplot.range.agg, 
+                  myplot.key.rt.group, myplot.key.rt.agg, 
+                  ncol=2, nrow=2, labels = c('A', 'B', 'C', 'D'))
 ggsave(filename=file.path(FIGS_DIR, "Ratings.png"), plot = fig.b, dpi = DPI, width = WIDTH1COL*2, height = HEIGHT1ROW)
 
 
@@ -439,6 +496,6 @@ text.new = c(text.new, line)
 
 }
 unlink(fileout)
-writeLines(text.new, con = fileout, )
+writeLines(text.new, con = fileout)
 ```
 
