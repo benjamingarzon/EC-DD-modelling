@@ -24,20 +24,20 @@ model = fitmodel(
   choicedata,
   c(
     "_choice_context_" = "ContextLow volatility",
-    "_choice_groupxcontext_" = "GroupLow first:ContextLow volatility",
-    "_choice_groupxamount_" = "GroupLow first:amount_later_centered",
+    "_choice_groupxcontext_" = "GroupLow vol. first:ContextLow volatility",
+    "_choice_groupxamount_" = "GroupLow vol. first:amount_later_centered",
     "_choice_contextxamount_" = "ContextLow volatility:amount_later_centered",
-    "_choice_groupxcontextxamount_" = "GroupLow first:ContextLow volatility:amount_later_centered"
+    "_choice_groupxcontextxamount_" = "GroupLow vol. first:ContextLow volatility:amount_later_centered"
   ),
   family = 'binomial'
 )
 print(summary(model))
 
-cc.main = fixef(model)["GroupLow first:ContextLow volatility"]
-cc.inter = fixef(model)["GroupLow first:ContextLow volatility:amount_later_centered"]
+cc.main = fixef(model)["GroupLow vol. first:ContextLow volatility"]
+cc.inter = fixef(model)["GroupLow vol. first:ContextLow volatility:amount_later_centered"]
 mm = model.matrix(model)
-z = cc.main*mm[,"GroupLow first:ContextLow volatility"]
-+ cc.inter*mm[,"GroupLow first:ContextLow volatility:amount_later_centered"]
+z = cc.main*mm[,"GroupLow vol. first:ContextLow volatility"]
++ cc.inter*mm[,"GroupLow vol. first:ContextLow volatility:amount_later_centered"]
 choicedata$choice.pred = choicedata$choice - sigmoid(z)
 
 choicedata.median.agg = choicedata %>%

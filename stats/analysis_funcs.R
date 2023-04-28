@@ -9,7 +9,7 @@ library(plyr)
 library(dplyr)
 library(GGally)
 library(ggh4x)
-
+library(pracma)
 conversion_rate = 6 / 8 # USD to GBP
 base_rate = 6
 
@@ -357,6 +357,7 @@ fitmodel = function(ff,
 
 tab_to_str = function(mytable){
   write.table(mytable, '../results/tmp.csv', sep = ';', row.names = F)
-  return(paste(readLines('../results/tmp.csv'), collapse = '\n'))
+  return(gsub("\"","",
+  paste(readLines('../results/tmp.csv'), collapse = '\n')))
 } 
 

@@ -83,8 +83,8 @@ print(myplot.range.order)
 model = fitmodel(
   "bid.diff ~ Group*amount_later_centered + (1|subjID)",
   ratingdata,
-  c("GroupLow first:amount_later_centered",
-    "GroupLow first")
+  c("GroupLow vol. first:amount_later_centered",
+    "GroupLow vol. first")
 )
 print(summary(model))
 
@@ -93,20 +93,20 @@ model = fitmodel(
   ratingdata,
   c(
     "_Rating_context_" = "ContextLow volatility",
-    "_Rating_groupxcontext_" = "GroupLow first:ContextLow volatility",
-    "_Rating_groupxev_" = "GroupLow first:ev",
+    "_Rating_groupxcontext_" = "GroupLow vol. first:ContextLow volatility",
+    "_Rating_groupxev_" = "GroupLow vol. first:ev",
     "_Rating_contextxev_" = "ContextLow volatility:ev",
-    "_Rating_groupxcontextxev_" = "GroupLow first:ContextLow volatility:ev"
+    "_Rating_groupxcontextxev_" = "GroupLow vol. first:ContextLow volatility:ev"
   )
 )
 print(summary(model))
 
-cc.main = fixef(model)["GroupLow first:ContextLow volatility"]
-cc.inter= fixef(model)["GroupLow first:ContextLow volatility:ev"]
+cc.main = fixef(model)["GroupLow vol. first:ContextLow volatility"]
+cc.inter= fixef(model)["GroupLow vol. first:ContextLow volatility:ev"]
 mm = model.matrix(model)
 
-ratingdata$bid.diff.pred = ratingdata$bid.diff - cc.main*mm[,"GroupLow first:ContextLow volatility"]  - 
-  cc.inter*mm[,"GroupLow first:ContextLow volatility:ev"] 
+ratingdata$bid.diff.pred = ratingdata$bid.diff - cc.main*mm[,"GroupLow vol. first:ContextLow volatility"]  - 
+  cc.inter*mm[,"GroupLow vol. first:ContextLow volatility:ev"] 
 
 ratingdata.mean.agg = ratingdata %>%
   group_by(subjID, Context, amount_later) %>%

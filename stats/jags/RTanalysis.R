@@ -1,5 +1,4 @@
 
-
 breaks = seq(0.5, 8.5, 1)
 choicedata = merge(
   choicedata.common,
@@ -141,8 +140,8 @@ myplot.RT.choice = ggplot(
   xlab('Later amount ($)') +
   ylab('Response time (s)') + theme(legend.position = 'bottom', legend.title = element_blank())
 
-myplot.RT.choice.order = myplot.RT.choice + facet_grid(Choice ~ Context_order)
-myplot.RT.choice.group = myplot.RT.choice + facet_grid(Choice ~ Group)
+myplot.RT.choice.order = myplot.RT.choice + facet_grid(Context_order ~ Choice)
+myplot.RT.choice.group = myplot.RT.choice + facet_grid(Group ~ Choice)
 print(myplot.RT.choice.order)
 print(myplot.RT.choice.group)
 
@@ -185,18 +184,19 @@ model = fitmodel(
    "log(rt) ~ Group*Context + (1|subjID)",
    choicedata,
    c("_RT_context_" = "ContextLow volatility", 
-     "_RT_groupxcontext_" = "GroupLow first:ContextLow volatility")
+     "_RT_groupxcontext_" = "GroupLow vol. first:ContextLow volatility")
  )
 
-cc = fixef(model)["GroupLow first:ContextLow volatility"]
+cc = fixef(model)["GroupLow vol. first:ContextLow volatility"]
 mm = model.matrix(model)
 
-choicedata$rt.pred = exp(log(choicedata$rt) - cc*mm[, "GroupLow first:ContextLow volatility"])
+choicedata$rt.pred = exp(log(choicedata$rt) - cc*mm[, "GroupLow vol. first:ContextLow volatility"])
 
 choicedata.median = choicedata %>%
   group_by(subjID,
            Context,
            context,
+           Choice,
            ev.cut) %>%
   dplyr::summarise(
     rt.median = median(rt.pred),
@@ -205,7 +205,7 @@ choicedata.median = choicedata %>%
   )
 
 choicedata.group.agg = choicedata.median %>%
-  group_by(Context, ev.cut) %>%
+  group_by(Context, ev.cut, Choice) %>%
   dplyr::summarise(
     rt.mean = mean(rt.median),
     rt.sem = sem(rt.median),
@@ -214,7 +214,7 @@ choicedata.group.agg = choicedata.median %>%
     ev = mean(ev)
   )
 
-myplot.RT = ggplot(
+myplot.RT.choice.agg = ggplot(
   data = choicedata.group.agg,
   aes(
     x = ev,
@@ -228,7 +228,8 @@ myplot.RT = ggplot(
   geom_line() +
   geom_point() +
   geom_errorbar(width = 0.5) +
+  facet_grid(. ~ Choice) + 
   xlab('Later amount ($)') +
   ylab('Response time (s)') 
 
-print(myplot.RT)
+print(myplot.RT.choice.agg)

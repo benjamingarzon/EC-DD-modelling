@@ -36,8 +36,8 @@ choicedata.common = choicedata.common %>% mutate(
     context_order == 1 &
       context == 'c1' |
       context_order == 2 & context == 'c2' ,
-    'High first',
-    'Low first'
+    'High vol. first',
+    'Low vol. first'
   )
 )
 
@@ -49,8 +49,8 @@ ratingdata.sub = ratingdata.sub %>% mutate(
     context_order == 1 &
       context == 'c1' |
       context_order == 2 & context == 'c2' ,
-    'High first',
-    'Low first'
+    'High vol. first',
+    'Low vol. first'
   )
 )
 ```
@@ -96,8 +96,8 @@ allIndPars = allIndPars %>% mutate(
     context_order == 1 &
       context == 'c1' |
       context_order == 2 & context == 'c2' ,
-    'High first',
-    'Low first'
+    'High vol. first',
+    'Low vol. first'
   )
 )
 ```
@@ -324,99 +324,17 @@ statslist['_prop_noise_'] = as.numeric(as.character(mediation.mat[5, 5]))*100
 
 ```
 
-## Check stability of parameters
-
-```{r, fig.width = 15}
-
-allIndPars.melt = melt(allIndPars %>% filter(subjID %in% include_subjects), id.vars = c("subjID", "Context", "context", "context_order", "Group"), variable.name = "parameter", value.name = "value") %>% filter(parameter %in% mypars) %>%mutate(value = as.numeric(value), parameter_label = par_labels[parameter])
-myplot.reliab = ggplot(allIndPars.melt, aes(x = Context, y = value, group = subjID)) + geom_line(size = 0.4) + geom_point(size = 0.6) +
-  ylab('Parameter value') + 
-  xlab('Volatility') + 
-  facet_wrap( .~ parameter_label, scales = "free", nrow = 1 )
-
-print(myplot.reliab)
-#myplot = ggplot(allIndPars.melt, aes(x = context, y = value, group = context )) + geom_violin() + facet_grid( context_order ~ parameter, scales = "free" )
-#print(myplot)
-
-allIndPars.melt$value.corr = 0
-for ( mypar in mypars){
-  mysubset = allIndPars.melt %>% filter(parameter == mypar)
-  model = lmer(value ~ context + context_order + (1|subjID), data = mysubset )
-  allIndPars.melt$value.corr[allIndPars.melt$parameter == mypar] =  predict(model,
-                                                                            mysubset %>% 
-                                                                            mutate(context_order = 0)) + resid(model)
-  plot(value.corr ~ value, allIndPars.melt %>% filter(parameter == mypar) )
-}
-```
 # Parameter tests
-
 ```{r, fig.width = 15}
-allIndPars.diff = merge(subset(allIndPars.melt, context == 'c1'), subset(allIndPars.melt, context == 'c2'), by = c('subjID', 'parameter'), suffixes = c('.c1', '.c2')) %>% mutate(value.corr = value.corr.c2 - value.corr.c1, c1_first = context_order.c1 == 1)
-
-myplot = ggplot(allIndPars.diff, aes(x=0, y = value.corr, fill = c1_first )) + geom_violin() + facet_wrap( . ~ parameter, scales = "free" )
-print(myplot)
-
-myplot = ggplot(allIndPars.diff, aes(x=0, y = value.corr)) + geom_violin() + geom_point(position = "jitter") + facet_wrap( . ~ parameter, scales = "free" )
-print(myplot)
-
-allIndPars.sum <- summarySE(allIndPars.melt, measurevar="value.corr", groupvars=c("Context", "context", "parameter_label", "context_order", "Group"))
-
-# Standard error of the mean
-
-myplot.differences = ggplot(allIndPars.sum, aes(x = Group, y=value.corr, ymin = value.corr-se, ymax = value.corr+se, col = Context, group = Context)) + 
-    geom_point(position = position_dodge(0.5)) + 
-    geom_errorbar(position = position_dodge(0.5)) +
-    geom_line(position = position_dodge(0.5)) + 
-    ylab('Parameter value') + 
-    xlab('Context order')  +
-    facet_wrap(.~ parameter_label, scales = 'free', nrow = 1)
-#    ggh4x::facet_grid2(context_order ~ parameter_label, scales = 'free_y', independent = 'y')
-
-print(myplot.differences)
-
-myplot.differences.all = ggplot() + 
-    geom_line(data = allIndPars.melt, aes(x = Context, y = value, group = subjID, col = Group), size = 0.2, alpha = 0.4) + 
-    geom_point(data = allIndPars.melt, aes(x = Context, y = value, col = Group), size = 0.5, alpha = 0.4) +
-    geom_line(data = allIndPars.sum, aes(x=Context, y=value.corr, col = Group, group = Group), size = 1) + 
-    geom_point(data = allIndPars.sum, aes(x=Context, y=value.corr, col = Group), size = 1) + 
-    geom_errorbar(data = allIndPars.sum, aes(ymin = value.corr-se, ymax = value.corr+se, x=Context, y=value.corr, col = Group), width=0.2, size = 1) +
-    ylab('Parameter value') + 
-    xlab('Context') + 
-    facet_wrap(.~ parameter_label, scales = 'free', nrow = 1)
-print(myplot.differences.all)
-
-allIndPars.sum <- summarySE(allIndPars.diff, measurevar="value.corr", groupvars=c( "parameter"))
+source('./ParameterAnalysis.R')
 ```
 
-```{r}
-
-allIndPars.good = allIndPars %>% filter(subjID %in% include_subjects)
-parameters = c("nondectime.p",
-               "b.drift.intercept.p",
-               "b.drift.amount.p",
-               "noise.p",
-               "bias.p")
-
-tests = c("ContextLow volatility",
-          "GroupLow first:ContextLow volatility")
-for (parameter in parameters) {
-  names(tests) = c(sprintf("_%s_context_", parameter),
-                   sprintf("_%s_groupxcontext_", parameter))
-  model = fitmodel(
-    sprintf("%s ~ Group * Context + (1|subjID)", parameter),
-    allIndPars %>% filter(subjID %in% include_subjects),
-    tests
-  )
-}
-print(summary(model))
-
-```
 
 
 ```{r, fig.width = 15}
 # Standard error of the mean
-myplot = ggplot(allIndPars.sum, aes(x=parameter, y=value.corr)) + 
-    geom_errorbar(aes(ymin = value.corr-se, ymax = value.corr+se), width=.1) +
+myplot = ggplot(allIndPars.sum, aes(x=parameter, y=value)) + 
+    geom_errorbar(aes(ymin = value-se, ymax = value+se), width=.1) +
     geom_line() +
     geom_point() + 
     ylab('Parameter difference (low volatility - high volatility)') + 
@@ -433,7 +351,7 @@ print(myplot)
 options(width = 300)
 
 
-mydata = allIndPars %>% filter(subjID %in% include_subjects & nondectime.p < 2)
+mydata = allIndPars %>% filter(subjID %in% include_subjects  & nondectime.p < 2)
 cor(mydata[mypars])
 pairs(mydata[mypars])
 mydata$GroupContext = paste(mydata$Group, mydata$Context, sep = " - ")
@@ -447,35 +365,35 @@ print(myplot.pairs)
 ```{r}
 
 HEIGHT1ROW = 4.06
-WIDTH1COL = 3.8 
+WIDTH1COL = 3.8
 DPI = 1000
 
 FIGS_DIR = '../figs'
 
-fig.a1 = ggarrange(myplot.RT.choice.group, myplot.RT.choice.agg, 
-                   myplot.choiceprob.group, mylplt.choiceprob.agg, 
+fig.a = ggarrange(myplot.RT.choice.group, myplot.RT.choice.agg, 
+                   myplot.choiceprob.group, myplot.choiceprob.agg, 
                    ncol=2, nrow=2, labels = c('A', 'B', 'C', 'D'))
 
 ggsave(filename=file.path(FIGS_DIR, "Choices.png"), plot = fig.a, dpi = DPI, 
-       width = WIDTH1COL*3, height = HEIGHT1ROW*2)
+       width = WIDTH1COL*2, height = HEIGHT1ROW*2)
 
-fig.b = ggarrange(myplot.differences, myplot.differences, ncol=1, nrow=2, labels = c('A', 'B'))
+fig.b = ggarrange(myplot.differences.all, myplot.differences.agg, ncol=1, nrow=2, labels = c('A', 'B'))
 #fig.a = ggarrange(fig.a1, fig.a2, ncol=1, nrow=2, heights = c(1, 1))
 
-ggsave(filename=file.path(FIGS_DIR, "Parameters.png"), plot = fig.b, dpi = DPI, width = WIDTH1COL*2, height = HEIGHT1ROW)
+ggsave(filename=file.path(FIGS_DIR, "Parameters.png"), plot = fig.b, dpi = DPI, width = WIDTH1COL*2, height = HEIGHT1ROW*2)
 
 
 fig.c = ggarrange(myplot.range.group, myplot.range.agg, 
                   myplot.key.rt.group, myplot.key.rt.agg, 
                   ncol=2, nrow=2, labels = c('A', 'B', 'C', 'D'))
-ggsave(filename=file.path(FIGS_DIR, "Ratings.png"), plot = fig.b, dpi = DPI, width = WIDTH1COL*2, height = HEIGHT1ROW)
+ggsave(filename=file.path(FIGS_DIR, "Ratings.png"), plot = fig.c, dpi = DPI, width = WIDTH1COL*2, height = HEIGHT1ROW*2)
 
 
 #ggsave(filename=file.path(FIGS_DIR, "Correlations.png"), plot = myplot.pairs, dpi = DPI, width = WIDTH1COL*2, height = HEIGHT1ROW*2)
 
 print(fig.a)
 print(fig.b)
-#print(fig.c)
+print(fig.c)
 
 ```
 

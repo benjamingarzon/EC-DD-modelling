@@ -70,15 +70,15 @@ model.rt = fitmodel(
   ratingdata,
   c(
     "_RatingRT_context_" = "ContextLow volatility",
-    "_RatingRT_groupxcontext_" = "GroupLow first:ContextLow volatility"
+    "_RatingRT_groupxcontext_" = "GroupLow vol. first:ContextLow volatility"
   )
 )
 print(summary(model.rt))
 
-cc = fixef(model.rt)["GroupLow first:ContextLow volatility"]
+cc = fixef(model.rt)["GroupLow vol. first:ContextLow volatility"]
 mm = model.matrix(model.rt)
 
-ratingdata$key.rt.pred = exp(log(ratingdata$key.rt) - cc*mm[,"GroupLow first:ContextLow volatility"])
+ratingdata$key.rt.pred = exp(log(ratingdata$key.rt) - cc*mm[,"GroupLow vol. first:ContextLow volatility"])
 
 ratingdata.median.ev = ratingdata %>%
   group_by(subjID,
