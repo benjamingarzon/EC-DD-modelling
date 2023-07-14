@@ -7,7 +7,6 @@ ratingdata.sub = ratingdata.sub %>%
   mutate(bid.rt.second = bid.rt.max - bid.rt.min,
          bid.rt.first = bid.rt.min)
 
-
 #remove outliers
 ratingdata.sub = ratingdata.sub %>% group_by(amount_later) %>% mutate(bid.diff.outlier = markoutliersIQR(log(bid.diff)),
                                                                       bid.rt.outlier = markoutliersIQR(log(bid.rt.max)))
@@ -71,7 +70,7 @@ myplot.range = ggplot(
   geom_line() +
   geom_point() +
   geom_errorbar(width = 0.5) +
-  xlab('Subjective value of later amount ($)') +
+  xlab('Later amount ($)') +
   ylab('Willingness-to-pay range ($)') 
 
 myplot.range.group = myplot.range + facet_grid(. ~ Group)
@@ -134,7 +133,7 @@ myplot.range.agg = ggplot(
   geom_line() +
   geom_point() +
   geom_errorbar(width = 0.5) +
-  xlab('Subjective value of later amount ($)') +
+  xlab('Later amount ($)') +
   ylab('Willingness-to-pay range ($)') 
 
 print(myplot.range.agg)

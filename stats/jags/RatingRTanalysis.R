@@ -1,15 +1,31 @@
 
 
-mypars.rt = c('key.rt') #, 'bid.rt.max', 'bid.rt.min',  'bid.rt.second', 'bid.rt.first')
+mypars.rt = c('key.rt') #, 'bid.rt.max', 'bid.rt.min',  'bid.rt.second', 'bid.rt.first')myplot = ggplot(data = ratingdata, aes(x = bid.rt.max, y = key.rt, fill = Context)) +
 
+myplot = ggplot(data = ratingdata, aes(x = bid.high.rt, y = bid.low.rt, col = Context)) +
+  geom_point() +
+  xlab('Bid time') +
+  ylab('Response time') + facet_grid(Context ~ Group)
+print(myplot)
+cor.test(ratingdata$bid.high.rt, ratingdata$bid.low.rt)
+ratingdata$key.rt.orig = ratingdata$key.rt
+ratingdata$key.rt = ratingdata$bid.rt.max + ratingdata$key.rt
 ratingdata.median = ratingdata %>%
   group_by(subjID, Context, context_order, Context_order, Group) %>%
   summarise(key.rt.median = median(key.rt) )
 
-myplot = ggplot(data = ratingdata, aes(x = Context, y = key.rt , fill = Context)) +
+
+myplot = ggplot(data = ratingdata, aes(x = Context, y = key.rt, fill = Context)) +
   geom_violin() +
   xlab('Context') +
   ylab('Response time') + facet_grid(. ~ Group)
+print(myplot)
+
+myplot = ggplot(data = ratingdata, aes(x = amount_later, y = key.rt , col = Context, group = subjID)) +
+  geom_point() +
+  geom_line() +
+  xlab('Later amount') +
+  ylab('Response time') + facet_grid(Context ~ Group)
 print(myplot)
 # do intermediate step
 
@@ -49,7 +65,7 @@ myplot.key.rt = ggplot(
 
 myplot.key.rt.group = myplot.key.rt + facet_grid(. ~ Group)
 myplot.key.rt.context = myplot.key.rt + facet_grid(. ~ Context)
-print(myplot.key.rt)
+print(myplot.key.rt.group)
 
 
 # myplot = ggplot(data = ratingdata, aes(x = as.factor( amount_later_centered), y = bid.rt.second/1000, fill = Context)) +

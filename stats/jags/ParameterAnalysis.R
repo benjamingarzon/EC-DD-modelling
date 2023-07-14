@@ -66,10 +66,10 @@ myplot.differences = ggplot(
 #    ggh4x::facet_grid2(context_order ~ parameter_label, scales = 'free_y', independent = 'y')
 
 print(myplot.differences)
-
+allIndPars.melt.vis = allIndPars.melt %>% filter((value < 2 & parameter == 'nondectime.p')|parameter != 'nondectime.p' )
 myplot.differences.all = ggplot() +
   geom_line(
-    data = allIndPars.melt,
+    data = allIndPars.melt.vis,
     aes(
       x = Context_short,
       y = value,
@@ -80,7 +80,7 @@ myplot.differences.all = ggplot() +
     alpha = 0.4
   ) +
   geom_point(
-    data = allIndPars.melt,
+    data = allIndPars.melt.vis,
     aes(x = Context_short, y = value, col = Group),
     size = 0.5,
     alpha = 0.4

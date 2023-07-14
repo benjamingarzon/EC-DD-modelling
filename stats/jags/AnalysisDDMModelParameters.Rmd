@@ -239,6 +239,18 @@ for (mypar in mypars){
      main.mat = rbind(main.mat, c(mypar.rating, mypar, co, round(ss.1, 3)))
      inter.mat = rbind(inter.mat, c(mypar.rating, mypar, co, round(ss.2, 3)))
   }
+  myplot.rating.pars = ggplot(data = ratingdata, aes(
+  x = eval(mypar.rating),
+  y = eval(mypar),
+  color = Context_order,
+  group = subjID
+)) +
+  geom_line(size = 0.5, alpha = 0.4) +
+  geom_point(size = 0.5, alpha = 0.4) +
+  xlab('Subjective value of later amount ($)') +
+  ylab('Willingness-to-pay range ($)') + facet_grid(. ~ Context_order)
+print(myplot.rating.pars)
+
   } 
 } 
 main.mat = as.data.frame(main.mat)
@@ -257,6 +269,10 @@ View(inter.mat)
 statslist['_table_range_main_'] = tab_to_str(main.mat)
 statslist['_table_range_inter_'] = tab_to_str(inter.mat)
 
+#ratingdata.melt = melt(ratingdata, measure.vars = mypars.rating, variable.name = "Parameter")
+
+
+
 ```
 
 
@@ -265,11 +281,11 @@ statslist['_table_range_inter_'] = tab_to_str(inter.mat)
 ```{r}
 library(mediation)
 detach(package:lmerTest)
-rating_par_names = c("bid.diff" = "WTP range", "key.rt" = "WTP response time")
-choice_par_names = c("b.drift.intercept.p" = "Drift intercept", "b.drift.amount.p" = "Drift sensitivity",
-                        "noise.p" = "Noise", "bias.p" = "Bias",
-                        "nondectime.p" = "Non-decision time"
-                      )
+# rating_par_names = c("bid.diff" = "WTP range", "key.rt" = "WTP response time")
+# choice_par_names = c("b.drift.intercept.p" = "Drift intercept", "b.drift.amount.p" = "Drift sensitivity",
+#                         "noise.p" = "Noise", "bias.p" = "Bias",
+#                         "nondectime.p" = "Non-decision\ntime"
+#                       )
 
 acme.mat = prop.mat = NULL
 #*Group*Context
@@ -350,14 +366,14 @@ print(myplot)
 
 options(width = 300)
 
-
 mydata = allIndPars %>% filter(subjID %in% include_subjects  & nondectime.p < 2)
 cor(mydata[mypars])
 pairs(mydata[mypars])
 mydata$GroupContext = paste(mydata$Group, mydata$Context, sep = " - ")
 
-myplot.pairs <- ggpairs(mydata, columns = mypars, ggplot2::aes(colour=GroupContext), columnLabels = par_labels)
+myplot.pairs <- ggpairs(mydata, columns = mypars, ggplot2::aes(colour=GroupContext), columnLabels = par_labels, upper = list(continuous = wrap("cor", size=2)))
 print(myplot.pairs)
+
 ```
 
 
@@ -370,12 +386,24 @@ DPI = 1000
 
 FIGS_DIR = '../figs'
 
-fig.a = ggarrange(myplot.RT.choice.group, myplot.RT.choice.agg, 
-                   myplot.choiceprob.group, myplot.choiceprob.agg, 
-                   ncol=2, nrow=2, labels = c('A', 'B', 'C', 'D'))
+#myplot.trial.RT
+
+fig.a.1 = ggarrange(myplot.RT.choice.group, myplot.RT.choice.agg,
+                   ncol=2, nrow=1, labels = c('A', 'B'))
+fig.a.2 = ggarrange(myplot.trial.RT,
+                   ncol=1, nrow=1, labels = c('C'))
+fig.a.3 = ggarrange(myplot.choiceprob.group, myplot.choiceprob.agg,
+                   ncol=2, nrow=1, labels = c('D', 'E'))
+
+# fig.a = ggarrange(myplot.RT.choice.group, myplot.RT.choice.agg, 
+#                    myplot.choiceprob.group, myplot.choiceprob.agg, 
+#                    ncol=2, nrow=2, labels = c('A', 'B', 'C', 'D'))
+
+fig.a = ggarrange(fig.a.1, fig.a.2, fig.a.3, 
+                   ncol=1, nrow=3)
 
 ggsave(filename=file.path(FIGS_DIR, "Choices.png"), plot = fig.a, dpi = DPI, 
-       width = WIDTH1COL*2, height = HEIGHT1ROW*2)
+       width = WIDTH1COL*2, height = HEIGHT1ROW*3)
 
 fig.b = ggarrange(myplot.differences.all, myplot.differences.agg, ncol=1, nrow=2, labels = c('A', 'B'))
 #fig.a = ggarrange(fig.a1, fig.a2, ncol=1, nrow=2, heights = c(1, 1))
@@ -388,8 +416,7 @@ fig.c = ggarrange(myplot.range.group, myplot.range.agg,
                   ncol=2, nrow=2, labels = c('A', 'B', 'C', 'D'))
 ggsave(filename=file.path(FIGS_DIR, "Ratings.png"), plot = fig.c, dpi = DPI, width = WIDTH1COL*2, height = HEIGHT1ROW*2)
 
-
-#ggsave(filename=file.path(FIGS_DIR, "Correlations.png"), plot = myplot.pairs, dpi = DPI, width = WIDTH1COL*2, height = HEIGHT1ROW*2)
+ggsave(filename=file.path(FIGS_DIR, "ParameterCorrelations.png"), plot = myplot.pairs, dpi = DPI, width = WIDTH1COL*2, height = HEIGHT1ROW*2)
 
 print(fig.a)
 print(fig.b)

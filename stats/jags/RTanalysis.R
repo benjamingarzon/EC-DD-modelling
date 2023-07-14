@@ -178,7 +178,7 @@ myplot = ggplot(data = choicedata, aes(
   ylab('Response time (s)') + ylim(-5, 5)
 
 #print(myplot)
-#choicedata$amount_later_centered.2 = choicedata$amount_later_centered ^ 2
+choicedata$amount_later_centered.2 = choicedata$amount_later_centered ^ 2
 
 model = fitmodel(
    "log(rt) ~ Group*Context + (1|subjID)",
@@ -191,6 +191,16 @@ cc = fixef(model)["GroupLow vol. first:ContextLow volatility"]
 mm = model.matrix(model)
 
 choicedata$rt.pred = exp(log(choicedata$rt) - cc*mm[, "GroupLow vol. first:ContextLow volatility"])
+
+model = fitmodel(
+  "log(rt) ~ Group*Context + Choice*(amount_later_centered + amount_later_centered.2) + (1|subjID)",
+  choicedata,
+  c("_RT_context_CORchoicexamount_" = "ContextLow volatility", 
+    "_RT_groupxcontext_CORchoicexamount_" = "GroupLow vol. first:ContextLow volatility"
+    ),
+    
+)
+
 
 choicedata.median = choicedata %>%
   group_by(subjID,
@@ -233,3 +243,75 @@ myplot.RT.choice.agg = ggplot(
   ylab('Response time (s)') 
 
 print(myplot.RT.choice.agg)
+
+choicedata.trial.all = merge(
+  choicedata.all,
+  allIndPars %>% filter(subjID %in% include_subjects),
+  by = c(
+    'subjID',
+    'context',
+    'background_col',
+    'context_order'
+  ), suffixes = c('', '.pars')
+)
+
+#load(file.path(WDD, "processed_data.RData"))
+
+choicedata.trial.all = choicedata.trial.all %>% mutate(ev = amount_later, context_num = as.numeric(substr(context, 2, 2))) %>% mutate(ev.cut = cut(ev, breaks))
+
+choicedata.trial = choicedata.trial.all %>% filter(iscommon == T) %>%
+  group_by(index,
+           Context,
+           context,
+           Context_order,
+           context_order,
+  #         ev.cut,
+           Group) %>%
+  dplyr::summarise(
+    rt.median = median(rt),
+    rt.sem = sem(rt),
+  #  ev = mean(ev),
+    prob_late = mean(choice)
+  )
+
+
+myplot.trial.RT = ggplot(
+  data = choicedata.trial,
+  aes(
+    x = index,
+    y = rt.median,
+    color = Group,
+    group = Group,
+    ymin = rt.median - rt.sem,
+    ymax = rt.median + rt.sem
+  )
+) +
+  geom_line(size=0.5) +
+  geom_point(size=0.5) +
+  geom_errorbar() + 
+  xlim(420, 460) +
+  xlab('Trial') +
+  ylab('Response time (s)') # + facet_grid(Group ~ .)
+
+print(myplot.trial.RT)
+
+myplot.trial.RT = ggplot(
+  data = choicedata.trial,
+  aes(
+    x = index,
+    y = rt.median,
+    color = Group,
+    group = Group,
+    ymin = rt.median - rt.sem,
+    ymax = rt.median + rt.sem
+  )
+) +
+  geom_line(size=0.3, alpha=0.5) +
+  geom_point(size=0.3, alpha=0.5) +
+  geom_errorbar(size=0.3, alpha=0.5) + 
+  xlab('Trial') +
+  ylab('Response time (s)') 
+print(myplot.trial.RT)
+
+choicedata.trans = choicedata.trial.all %>% filter(index == 441) # & iscommon == T) 
+t.test(log(rt) ~ Group, choicedata.trans)
