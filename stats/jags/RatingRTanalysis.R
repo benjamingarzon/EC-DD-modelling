@@ -7,13 +7,13 @@ myplot = ggplot(data = ratingdata, aes(x = bid.high.rt, y = bid.low.rt, col = Co
   xlab('Bid time') +
   ylab('Response time') + facet_grid(Context ~ Group)
 print(myplot)
-cor.test(ratingdata$bid.high.rt, ratingdata$bid.low.rt)
+
 ratingdata$key.rt.orig = ratingdata$key.rt
-ratingdata$key.rt = ratingdata$bid.rt.max + ratingdata$key.rt
+ratingdata$key.rt = ratingdata$bid.rt.max 
+
 ratingdata.median = ratingdata %>%
   group_by(subjID, Context, context_order, Context_order, Group) %>%
   summarise(key.rt.median = median(key.rt) )
-
 
 myplot = ggplot(data = ratingdata, aes(x = Context, y = key.rt, fill = Context)) +
   geom_violin() +
@@ -42,7 +42,7 @@ ratingdata.median.ev = ratingdata %>%
 ratingdata.group = ratingdata.median.ev %>%
   group_by(Context, context_order, Context_order, Group, amount_later, ev) %>%
   summarise(
-    key.rt.mean = mean(key.rt),
+    key.rt.mean = mean(key.rt, na.rm=T),
     key.rt.sem = sem(key.rt),
     ev = mean(ev)
   )
@@ -101,12 +101,12 @@ ratingdata.median.ev = ratingdata %>%
            Context,
            amount_later,
            ev) %>%
-  summarise(key.rt = median(key.rt.pred))
+  summarise(key.rt = median(key.rt.pred, na.rm=T))
 
 ratingdata.group.agg = ratingdata.median.ev %>%
   group_by(Context, amount_later, ev) %>%
   summarise(
-    key.rt.mean = mean(key.rt),
+    key.rt.mean = mean(key.rt, na.rm=T),
     key.rt.sem = sem(key.rt),
     ev = mean(ev)
   )

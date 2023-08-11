@@ -195,8 +195,8 @@ choicedata$rt.pred = exp(log(choicedata$rt) - cc*mm[, "GroupLow vol. first:Conte
 model = fitmodel(
   "log(rt) ~ Group*Context + Choice*(amount_later_centered + amount_later_centered.2) + (1|subjID)",
   choicedata,
-  c("_RT_context_CORchoicexamount_" = "ContextLow volatility", 
-    "_RT_groupxcontext_CORchoicexamount_" = "GroupLow vol. first:ContextLow volatility"
+  c("_RT_contextCORchoicexamount_" = "ContextLow volatility", 
+    "_RT_groupxcontextCORchoicexamount_" = "GroupLow vol. first:ContextLow volatility"
     ),
     
 )
@@ -310,6 +310,7 @@ myplot.trial.RT = ggplot(
   geom_point(size=0.3, alpha=0.5) +
   geom_errorbar(size=0.3, alpha=0.5) + 
   xlab('Trial') +
+  scale_color_manual(values = c("green", "brown")) +
   ylab('Response time (s)') 
 print(myplot.trial.RT)
 
