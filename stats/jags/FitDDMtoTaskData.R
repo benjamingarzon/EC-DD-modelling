@@ -115,7 +115,7 @@ monitor = c(
   "bias.mu",
   "bias.kappa",
   "bias.p",
-#  "drift",
+  #  "drift",
   "deviance"
 )
 
@@ -128,13 +128,11 @@ NTHIN = 10
 NCHAINS = 4
 NFINALSAMPLES = min(1000, NSAMPLES)
 
-mycolumns = c(
-  'N',
-  'M',
-  'RT.signed',
-  'instance',
-  'amount_later_centered'
-)
+mycolumns = c('N',
+              'M',
+              'RT.signed',
+              'instance',
+              'amount_later_centered')
 jags_data = dump.format(dataList[mycolumns])
 
 
@@ -143,7 +141,12 @@ myfit <- run.jags(
   monitor = monitor,
   data = jags_data,
   n.chains = NCHAINS,
-  inits = c(dump.format(inits1), dump.format(inits2), dump.format(inits3), dump.format(inits4)),
+  inits = c(
+    dump.format(inits1),
+    dump.format(inits2),
+    dump.format(inits3),
+    dump.format(inits4)
+  ),
   method = "parallel",
   modules = "wiener",
   burnin = NBURNIN,

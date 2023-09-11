@@ -36,8 +36,8 @@ print(summary(model))
 cc.main = fixef(model)["GroupLow vol. first:ContextLow volatility"]
 cc.inter = fixef(model)["GroupLow vol. first:ContextLow volatility:amount_later_centered"]
 mm = model.matrix(model)
-z = cc.main*mm[,"GroupLow vol. first:ContextLow volatility"]
-+ cc.inter*mm[,"GroupLow vol. first:ContextLow volatility:amount_later_centered"]
+z = cc.main * mm[, "GroupLow vol. first:ContextLow volatility"]
++ cc.inter * mm[, "GroupLow vol. first:ContextLow volatility:amount_later_centered"]
 choicedata$choice.pred = choicedata$choice - sigmoid(z)
 
 choicedata.median.agg = choicedata %>%
@@ -45,10 +45,8 @@ choicedata.median.agg = choicedata %>%
            Context,
            context,
            ev.cut) %>%
-  dplyr::summarise(
-    ev = mean(ev),
-    prob_late = mean(choice.pred)
-  )
+  dplyr::summarise(ev = mean(ev),
+                   prob_late = mean(choice.pred))
 
 choicedata.group.agg = choicedata.median.agg %>%
   group_by(Context, ev.cut) %>%
@@ -75,15 +73,24 @@ myplot.choiceprob.agg = ggplot(
   ylab('Frequency of later option') + theme(legend.position = 'bottom', legend.title = element_blank())
 print(myplot.choiceprob.agg)
 
-choicedata.group.wide = dcast(choicedata.group, ev.cut + Context_order ~ Context,  value.var = c("prob_late.mean"))
+choicedata.group.wide = dcast(choicedata.group,
+                              ev.cut + Context_order ~ Context,
+                              value.var = c("prob_late.mean"))
 choicedata.group.wide = choicedata.group.wide %>% mutate(highprob = `High volatility`,
-                                                         lowprob = `Low volatility`) 
-choicedata.group.wide.sem = dcast(choicedata.group, ev.cut + Context_order ~ Context,  value.var = c("prob_late.sem"))
+                                                         lowprob = `Low volatility`)
+choicedata.group.wide.sem = dcast(choicedata.group,
+                                  ev.cut + Context_order ~ Context,
+                                  value.var = c("prob_late.sem"))
 
 choicedata.group.wide.sem = choicedata.group.wide.sem %>% mutate(highsem = `High volatility`,
-                                                         lowsem = `Low volatility`) 
+                                                                 lowsem = `Low volatility`)
 
-choicedata.group.wide = merge(choicedata.group.wide, choicedata.group.wide.sem, by = c("ev.cut", "Context_order"), suffix = c(".x", ".y"))
+choicedata.group.wide = merge(
+  choicedata.group.wide,
+  choicedata.group.wide.sem,
+  by = c("ev.cut", "Context_order"),
+  suffix = c(".x", ".y")
+)
 
 myplot.choiceprob.wide = ggplot(
   data = choicedata.group.wide,
@@ -99,12 +106,12 @@ myplot.choiceprob.wide = ggplot(
   )
 ) +
   geom_line() +
-  geom_point() + 
+  geom_point() +
   geom_abline(slope = 1, intercept = 0) +
   geom_errorbar() +
-  geom_errorbarh() + 
+  geom_errorbarh() +
   xlab("Probability of later option\n(high volatility context)") +
-  ylab("Probability of later option\n(low volatility context)") 
-  #xlab('Later amount ($)') +
-  #ylab('Frequency of later option') + theme(legend.position = 'bottom', legend.title = element_blank())
+  ylab("Probability of later option\n(low volatility context)")
+#xlab('Later amount ($)') +
+#ylab('Frequency of later option') + theme(legend.position = 'bottom', legend.title = element_blank())
 print(myplot.choiceprob.wide)

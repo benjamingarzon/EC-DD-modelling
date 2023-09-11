@@ -71,19 +71,21 @@ myplot.range = ggplot(
   geom_point() +
   geom_errorbar(width = 0.5) +
   xlab('Later amount ($)') +
-  ylab('Willingness-to-pay range ($)') 
+  ylab('Willingness-to-pay range ($)')
 
 myplot.range.group = myplot.range + facet_grid(. ~ Group)
 myplot.range.order = myplot.range + facet_grid(. ~ Context_order)
-  
+
 print(myplot.range.group)
 print(myplot.range.order)
 
 model = fitmodel(
   "bid.diff ~ Group*amount_later_centered + (1|subjID)",
   ratingdata,
-  c("GroupLow vol. first:amount_later_centered",
-    "GroupLow vol. first")
+  c(
+    "GroupLow vol. first:amount_later_centered",
+    "GroupLow vol. first"
+  )
 )
 print(summary(model))
 
@@ -101,11 +103,11 @@ model = fitmodel(
 print(summary(model))
 
 cc.main = fixef(model)["GroupLow vol. first:ContextLow volatility"]
-cc.inter= fixef(model)["GroupLow vol. first:ContextLow volatility:ev"]
+cc.inter = fixef(model)["GroupLow vol. first:ContextLow volatility:ev"]
 mm = model.matrix(model)
 
-ratingdata$bid.diff.pred = ratingdata$bid.diff - cc.main*mm[,"GroupLow vol. first:ContextLow volatility"]  - 
-  cc.inter*mm[,"GroupLow vol. first:ContextLow volatility:ev"] 
+ratingdata$bid.diff.pred = ratingdata$bid.diff - cc.main * mm[, "GroupLow vol. first:ContextLow volatility"]  -
+  cc.inter * mm[, "GroupLow vol. first:ContextLow volatility:ev"]
 
 ratingdata.mean.agg = ratingdata %>%
   group_by(subjID, Context, amount_later) %>%
@@ -134,6 +136,6 @@ myplot.range.agg = ggplot(
   geom_point() +
   geom_errorbar(width = 0.5) +
   xlab('Later amount ($)') +
-  ylab('Willingness-to-pay range ($)') 
+  ylab('Willingness-to-pay range ($)')
 
 print(myplot.range.agg)

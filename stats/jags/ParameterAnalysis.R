@@ -1,9 +1,17 @@
 
 
+
 allIndPars.good = allIndPars %>% filter(subjID %in% include_subjects)
 allIndPars.melt = melt(
   allIndPars.good,
-  id.vars = c("subjID", "Context_short", "Context", "context", "context_order", "Group"),
+  id.vars = c(
+    "subjID",
+    "Context_short",
+    "Context",
+    "context",
+    "context_order",
+    "Group"
+  ),
   variable.name = "parameter",
   value.name = "value"
 ) %>%
@@ -66,7 +74,8 @@ myplot.differences = ggplot(
 #    ggh4x::facet_grid2(context_order ~ parameter_label, scales = 'free_y', independent = 'y')
 
 print(myplot.differences)
-allIndPars.melt.vis = allIndPars.melt %>% filter((value < 2 & parameter == 'nondectime.p')|parameter != 'nondectime.p' )
+allIndPars.melt.vis = allIndPars.melt %>% filter((value < 2 &
+                                                    parameter == 'nondectime.p') | parameter != 'nondectime.p')
 myplot.differences.all = ggplot() +
   geom_line(
     data = allIndPars.melt.vis,
@@ -152,7 +161,7 @@ allIndPars.melt = melt(
   variable.name = "parameter",
   value.name = "value"
 ) %>%
-  filter(parameter %in% mypars) %>% mutate(value = as.numeric(value), 
+  filter(parameter %in% mypars) %>% mutate(value = as.numeric(value),
                                            parameter_label = par_labels[parameter])
 
 allIndPars.sum <-
@@ -165,10 +174,12 @@ allIndPars.sum <-
   )
 
 myplot.differences.agg = ggplot(data = allIndPars.sum,
-                                aes(x = Context_short,
-                                    y = value,
-                                    ymin = value - se,
-                                    ymax = value + se)) +
+                                aes(
+                                  x = Context_short,
+                                  y = value,
+                                  ymin = value - se,
+                                  ymax = value + se
+                                )) +
   geom_line(size = 1) +
   geom_point(size = 1) +
   geom_errorbar(width = 0.2,

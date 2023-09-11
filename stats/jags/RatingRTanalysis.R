@@ -1,6 +1,6 @@
 
 
-mypars.rt = c('key.rt') #, 'bid.rt.max', 'bid.rt.min',  'bid.rt.second', 'bid.rt.first')myplot = ggplot(data = ratingdata, aes(x = bid.rt.max, y = key.rt, fill = Context)) +
+mypars.rt = c('key.rt') # 'bid.rt.max', 'bid.rt.min',  'bid.rt.second', 'bid.rt.first')
 
 myplot = ggplot(data = ratingdata, aes(x = bid.high.rt, y = bid.low.rt, col = Context)) +
   geom_point() +
@@ -8,12 +8,13 @@ myplot = ggplot(data = ratingdata, aes(x = bid.high.rt, y = bid.low.rt, col = Co
   ylab('Response time') + facet_grid(Context ~ Group)
 print(myplot)
 
+# use last slider response time
 ratingdata$key.rt.orig = ratingdata$key.rt
-ratingdata$key.rt = ratingdata$bid.rt.max 
+ratingdata$key.rt = ratingdata$bid.rt.max
 
 ratingdata.median = ratingdata %>%
   group_by(subjID, Context, context_order, Context_order, Group) %>%
-  summarise(key.rt.median = median(key.rt) )
+  summarise(key.rt.median = median(key.rt))
 
 myplot = ggplot(data = ratingdata, aes(x = Context, y = key.rt, fill = Context)) +
   geom_violin() +
@@ -21,7 +22,13 @@ myplot = ggplot(data = ratingdata, aes(x = Context, y = key.rt, fill = Context))
   ylab('Response time') + facet_grid(. ~ Group)
 print(myplot)
 
-myplot = ggplot(data = ratingdata, aes(x = amount_later, y = key.rt , col = Context, group = subjID)) +
+myplot = ggplot(data = ratingdata,
+                aes(
+                  x = amount_later,
+                  y = key.rt ,
+                  col = Context,
+                  group = subjID
+                )) +
   geom_point() +
   geom_line() +
   xlab('Later amount') +
@@ -42,7 +49,7 @@ ratingdata.median.ev = ratingdata %>%
 ratingdata.group = ratingdata.median.ev %>%
   group_by(Context, context_order, Context_order, Group, amount_later, ev) %>%
   summarise(
-    key.rt.mean = mean(key.rt, na.rm=T),
+    key.rt.mean = mean(key.rt, na.rm = T),
     key.rt.sem = sem(key.rt),
     ev = mean(ev)
   )
@@ -61,7 +68,7 @@ myplot.key.rt = ggplot(
   geom_point() +
   geom_errorbar() +
   xlab('Later amount ($)') +
-  ylab('Response time (s)') 
+  ylab('Response time (s)')
 
 myplot.key.rt.group = myplot.key.rt + facet_grid(. ~ Group)
 myplot.key.rt.context = myplot.key.rt + facet_grid(. ~ Context)
@@ -94,19 +101,19 @@ print(summary(model.rt))
 cc = fixef(model.rt)["GroupLow vol. first:ContextLow volatility"]
 mm = model.matrix(model.rt)
 
-ratingdata$key.rt.pred = exp(log(ratingdata$key.rt) - cc*mm[,"GroupLow vol. first:ContextLow volatility"])
+ratingdata$key.rt.pred = exp(log(ratingdata$key.rt) - cc * mm[, "GroupLow vol. first:ContextLow volatility"])
 
 ratingdata.median.ev = ratingdata %>%
   group_by(subjID,
            Context,
            amount_later,
            ev) %>%
-  summarise(key.rt = median(key.rt.pred, na.rm=T))
+  summarise(key.rt = median(key.rt.pred, na.rm = T))
 
 ratingdata.group.agg = ratingdata.median.ev %>%
   group_by(Context, amount_later, ev) %>%
   summarise(
-    key.rt.mean = mean(key.rt, na.rm=T),
+    key.rt.mean = mean(key.rt, na.rm = T),
     key.rt.sem = sem(key.rt),
     ev = mean(ev)
   )
@@ -125,6 +132,6 @@ myplot.key.rt.agg = ggplot(
   geom_point() +
   geom_errorbar() +
   xlab('Later amount ($)') +
-  ylab('Response time (s)') 
+  ylab('Response time (s)')
 
 print(myplot.key.rt.agg)
