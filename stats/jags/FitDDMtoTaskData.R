@@ -21,9 +21,10 @@ if (F) {
   # tests
   INPUT_FILE = 'processed_data_censored.RData'
   #  INPUT_FILE = 'processed_data.RData'
-  MODEL_NAME = 'linear_drift_ddm'
-  NSAMPLES = 500
-  NBURNIN = 1000
+  #MODEL_NAME = 'linear_drift_ddm'
+  MODEL_NAME = 'linear_drift_variability_no_pooling_ddm'
+  NSAMPLES = 10
+  NBURNIN = 10
 } else {
   args = commandArgs(trailingOnly = TRUE)
   INPUT_FILE = args[1]
@@ -98,6 +99,12 @@ inits4 <- list(
   .RNG.seed = 6666
 )
 
+myinits = c(
+  dump.format(inits1),
+  dump.format(inits2),
+  dump.format(inits3),
+  dump.format(inits4)
+)
 
 monitor = c(
   "b.drift.intercept.mu",
@@ -118,6 +125,42 @@ monitor = c(
   #  "drift",
   "deviance"
 )
+
+if (MODEL_NAME == 'linear_drift_variability_no_pooling_ddm')
+{
+  get_inits <- function(i){
+    
+   ll <- list(
+    b.drift.intercept.p = runif(numSubjs, -.1, .1),
+    b.drift.amount.p = runif(numSubjs, -.1, .1),
+    b.drift.pr.p = runif(numSubjs, 1.1, 3),
+    nondectime.p = runif(numSubjs, .1, .3),
+    noise.p = runif(numSubjs, .1, .3),
+    bias.p = runif(numSubjs, .4, .6),
+    .RNG.name = c("base::Mersenne-Twister","base::Super-Duper", "base::Wichmann-Hill", "base::Wichmann-Hill")[i],
+    .RNG.seed = c(6666, 9999, 77, 1234)[i] 
+  )
+   dump.format(ll)
+  }
+  myinits = c(
+    get_inits(1),
+    get_inits(2),
+    get_inits(3),
+    get_inits(4)
+  )
+
+  monitor = c(
+    "b.drift.intercept.p",
+    "b.drift.amount.p",
+    "b.drift.pr.p",
+    "nondectime.p",
+    "noise.p",
+    "bias.p",
+    #  "drift",
+    "deviance"
+  )
+  
+}  
 
 ######################################################################
 # Parameter estimation
@@ -141,12 +184,7 @@ myfit <- run.jags(
   monitor = monitor,
   data = jags_data,
   n.chains = NCHAINS,
-  inits = c(
-    dump.format(inits1),
-    dump.format(inits2),
-    dump.format(inits3),
-    dump.format(inits4)
-  ),
+    inits = myinits,
   method = "parallel",
   modules = "wiener",
   burnin = NBURNIN,

@@ -238,10 +238,9 @@ check_jags_model = function(myfit, myfit_rjags, myfit_samples) {
             params = pars,
             ISB = FALSE,
             pdf = FALSE)
-  
-  MCMCplot(myfit_samples, 
-           params = pars[-length(pars)] ,
-           ref_ovl = TRUE)
+  #  MCMCplot(myfit_samples, 
+  #         params = pars[-length(pars)] ,
+  #         ref_ovl = TRUE)
   
   MCMCplot(myfit_samples, 
            params = 'b.drift.intercept.p',

@@ -13,6 +13,7 @@ mytheme = theme_classic(base_size = 13) + theme(legend.position = 'bottom', lege
 theme_set(mytheme)
 # Load previous fit
 MYFILE = '../results/linear_drift_ddm-02-05-2022_00:03-10000-50000-jags-pars.RData'
+MYFILE = '../results/linear_drift_variability_no_pooling_ddm-06-10-2023_21_47-1000-1000-jags-pars.RData'
 load(MYFILE)
 numSubjs = dataList$N
 
