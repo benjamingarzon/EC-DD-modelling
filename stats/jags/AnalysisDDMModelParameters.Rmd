@@ -13,7 +13,7 @@ mytheme = theme_classic(base_size = 13) + theme(legend.position = 'bottom', lege
 theme_set(mytheme)
 # Load previous fit
 MYFILE = '../results/linear_drift_ddm-02-05-2022_00:03-10000-50000-jags-pars.RData'
-MYFILE = '../results/linear_drift_variability_no_pooling_ddm-06-10-2023_21_47-1000-1000-jags-pars.RData'
+MYFILE = '../results/linear_drift_variability_no_pooling_bd_ddm-28-10-2023_20:24-10000-1e+05-jags-pars.RData'
 load(MYFILE)
 numSubjs = dataList$N
 
@@ -60,8 +60,8 @@ ratingdata.sub = ratingdata.sub %>% mutate(
 # Extract parameters
 ```{r}
 
-numPars <- 5
-
+numPars <- 6
+parVals$noise.p = parVals$boundary.p
 # Individual parameters (e.g., individual posterior means)
 allIndPars <- array(NA, c(numSubjs, numPars))
 allIndPars <- as.data.frame(allIndPars)
@@ -72,7 +72,8 @@ for (i in 1:numSubjs) {
     mean(parVals$b.drift.amount.p[i,]),
     mean(parVals$bias.p[i,]),
     mean(parVals$nondectime.p[i,]),
-    mean(parVals$noise.p[i,])
+    mean(parVals$noise.p[i,]),
+    mean(parVals$sigma.p[i,])
   )
 }
 
@@ -81,6 +82,7 @@ allIndPars = cbind(allIndPars, subjList[-ncol(subjList)])
 colnames(allIndPars) <- c(
   "b.drift.intercept.p",
   "b.drift.amount.p",
+  "sigma.p",
   "bias.p",
   "nondectime.p",
   "noise.p",
@@ -154,13 +156,16 @@ for (var in c("context",  "background_col", "context_order"))
   get_par_jags("bias.p", var)
   get_par_jags("nondectime.p", var)
   get_par_jags("noise.p", var)
-}
+  get_par_jags("sigma.p", var)
+
+  }
 
 get_par_jags("b.drift.intercept.p", var2 = "Context", var = "context_order")
 get_par_jags("b.drift.amount.p", var2 = "Context", var = "context_order")
 get_par_jags("bias.p", var2 = "Context", var = "context_order")
 get_par_jags("nondectime.p", var2 = "Context", var = "context_order")
 get_par_jags("noise.p", var2 = "Context", var = "context_order")
+get_par_jags("sigma.p", var2 = "Context", var = "context_order")
 
 context_sigmas = c(5, 2, 1)
 
@@ -170,7 +175,8 @@ mypars = c("b.drift.intercept.p",
            "b.drift.amount.p",
            "bias.p",
            "nondectime.p",
-           "noise.p")
+           "noise.p",
+           "sigma.p")
 
 for (mypar in mypars) {
   print("------------------------------------")
@@ -227,7 +233,8 @@ choice_par_names = c(
   "b.drift.amount.p" = "Drift sensitivity",
   "noise.p" = "Noise",
   "bias.p" = "Bias",
-  "nondectime.p" = "Non-decision time"
+  "nondectime.p" = "Non-decision time",
+  "sigma.p" = "Drift sd"
 )
 
 myplots.list = list()
@@ -446,7 +453,7 @@ ggsave(
 )
 
 fig.d = ggarrange(plotlist = myplots.list,
-                  ncol = 5,
+                  ncol = 6,
                   nrow = 2)
 
 ggsave(

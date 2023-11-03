@@ -1,0 +1,25 @@
+model {
+
+    for (p in 1:N) { # subject level
+
+        b.drift.intercept.p[p] ~ dnorm(0, 5)
+        b.drift.amount.p[p] ~ dnorm(0, 5)
+        sigma.p[p] ~ dunif(0, 1)
+        b.drift.pr.p[p] = pow(sigma.p[p], -2)
+        boundary.p[p] ~ dunif(0, 10)
+        nondectime.p[p] ~ dunif(0, 4)
+        bias.p[p] ~ dbeta(2, 2)T(0.01, 0.99)
+
+    }
+
+    for (i in 1:M) { # trial level
+        RT.signed[i] ~ dwieners(boundary[i], nondectime[i], bias[i], drift[i], 1)
+        
+        # generate trial-by-trial parameters
+        bias[i] <- bias.p[instance[i]]
+        boundary[i] <- boundary.p[instance[i]]
+        nondectime[i] <- nondectime.p[instance[i]]
+        drift[i] <- b.drift.intercept.p[instance[i]] + b.drift.amount.p[instance[i]]*amount_later_centered[i]
+
+    }
+}

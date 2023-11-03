@@ -17,7 +17,8 @@ par_labels =  c("b.drift.intercept.p" = "Drift intercept",
                 "b.drift.a mount.p" = "Drift\nsensitivity",
                 "bias.p" = "Bias",
                 "nondectime.p" = "Non-decision\ntime",
-                "noise.p" = "Noise")                
+                "noise.p" = "Noise",
+                "sigma.p" = "Drift sd")                
 
 ########################################################################################################
 # some aux functions
@@ -248,6 +249,18 @@ check_jags_model = function(myfit, myfit_rjags, myfit_samples) {
   
   MCMCplot(myfit_samples, 
            params = 'b.drift.amount.p',
+           ref_ovl = TRUE)
+
+  MCMCplot(myfit_samples, 
+           params = 'boundary.p',
+           ref_ovl = TRUE)
+
+  MCMCplot(myfit_samples, 
+           params = 'bias.p',
+           ref_ovl = TRUE)
+
+  MCMCplot(myfit_samples, 
+           params = 'nondectime.p',
            ref_ovl = TRUE)
   
   print(sort(rhat, decreasing = T)[1:20])

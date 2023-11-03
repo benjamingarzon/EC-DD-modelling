@@ -134,7 +134,8 @@ parameters = c("nondectime.p",
                "b.drift.intercept.p",
                "b.drift.amount.p",
                "noise.p",
-               "bias.p")
+               "bias.p",
+               "sigma.p")
 
 tests = c("ContextLow volatility",
           "GroupLow vol. first:ContextLow volatility")

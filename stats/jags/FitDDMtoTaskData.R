@@ -14,6 +14,10 @@ source('../analysis_funcs.R')
 WD = '../../data'
 WDD = file.path(WD, 'experiment')
 
+# Set sampler parameters
+NTHIN = 10
+NCHAINS = 4
+
 ######################################################################
 # Arguments
 ######################################################################
@@ -22,9 +26,9 @@ if (F) {
   INPUT_FILE = 'processed_data_censored.RData'
   #  INPUT_FILE = 'processed_data.RData'
   #MODEL_NAME = 'linear_drift_ddm'
-  MODEL_NAME = 'linear_drift_variability_no_pooling_ddm'
-  NSAMPLES = 10
-  NBURNIN = 10
+  MODEL_NAME = 'linear_drift_variability_no_pooling_bd_ddm'
+  NSAMPLES = 1000
+  NBURNIN = 1000
 } else {
   args = commandArgs(trailingOnly = TRUE)
   INPUT_FILE = args[1]
@@ -34,7 +38,7 @@ if (F) {
 }
 
 MODEL_FILE = file.path('models', paste(MODEL_NAME, 'jags', sep = '.'))
-
+NFINALSAMPLES = min(1000, NSAMPLES)
 ######################################################################
 # Load and prepare data
 ######################################################################
@@ -126,19 +130,20 @@ monitor = c(
   "deviance"
 )
 
-if (MODEL_NAME == 'linear_drift_variability_no_pooling_ddm')
+if (MODEL_NAME %in% c('linear_drift_variability_no_pooling_ddm'))
 {
   get_inits <- function(i){
     
    ll <- list(
     b.drift.intercept.p = runif(numSubjs, -.1, .1),
     b.drift.amount.p = runif(numSubjs, -.1, .1),
-    b.drift.pr.p = runif(numSubjs, 1.1, 3),
-    nondectime.p = runif(numSubjs, .1, .3),
-    noise.p = runif(numSubjs, .1, .3),
+  #  b.drift.pr.p = runif(numSubjs, 1, 10),
+    sigma.p = runif(numSubjs, .1, .9),
+    nondectime.p = runif(numSubjs, .01, .1),
+    noise.p = runif(numSubjs, .1, .5),
     bias.p = runif(numSubjs, .4, .6),
-    .RNG.name = c("base::Mersenne-Twister","base::Super-Duper", "base::Wichmann-Hill", "base::Wichmann-Hill")[i],
-    .RNG.seed = c(6666, 9999, 77, 1234)[i] 
+    .RNG.name = c("base::Mersenne-Twister","base::Super-Duper", "base::Wichmann-Hill", "base::Marsaglia-Multicarry")[i],
+    .RNG.seed = c(6666, 9999, 7777, 3333)[i] 
   )
    dump.format(ll)
   }
@@ -152,9 +157,84 @@ if (MODEL_NAME == 'linear_drift_variability_no_pooling_ddm')
   monitor = c(
     "b.drift.intercept.p",
     "b.drift.amount.p",
+    "sigma.p",
     "b.drift.pr.p",
     "nondectime.p",
     "noise.p",
+    "bias.p",
+    #  "drift",
+    "deviance"
+  )
+  
+}  
+
+if (MODEL_NAME %in% c('linear_drift_variability_no_pooling_bd_ddm'))
+{
+  get_inits <- function(i){
+    
+    ll <- list(
+      b.drift.intercept.p = runif(numSubjs, -.1, .1),
+      b.drift.amount.p = runif(numSubjs, -.1, .1),
+      #  b.drift.pr.p = runif(numSubjs, 1, 10),
+      sigma.p = runif(numSubjs, .1, .9),
+      nondectime.p = runif(numSubjs, .01, .1),
+      boundary.p = runif(numSubjs, 1.1, 2),
+      bias.p = runif(numSubjs, .4, .6),
+      .RNG.name = c("base::Mersenne-Twister","base::Super-Duper", "base::Wichmann-Hill", "base::Marsaglia-Multicarry")[i],
+      .RNG.seed = c(6666, 9999, 7777, 3333)[i] 
+    )
+    dump.format(ll)
+  }
+  myinits = c(
+    get_inits(1),
+    get_inits(2),
+    get_inits(3),
+    get_inits(4)
+  )
+  
+  monitor = c(
+    "b.drift.intercept.p",
+    "b.drift.amount.p",
+    "sigma.p",
+    "b.drift.pr.p",
+    "nondectime.p",
+    "boundary.p",
+    "bias.p",
+    #  "drift",
+    "deviance"
+  )
+  
+}  
+
+if (MODEL_NAME %in% c('linear_drift_no_pooling_bd_ddm'))
+{
+  get_inits <- function(i){
+    
+    ll <- list(
+      b.drift.intercept.p = runif(numSubjs, -.1, .1),
+      b.drift.amount.p = runif(numSubjs, -.1, .1),
+      sigma.p = runif(numSubjs, .1, .9),
+      nondectime.p = runif(numSubjs, .01, .1),
+      boundary.p = runif(numSubjs, 1.1, 2),
+      bias.p = runif(numSubjs, .4, .6),
+      .RNG.name = c("base::Mersenne-Twister","base::Super-Duper", "base::Wichmann-Hill", "base::Marsaglia-Multicarry")[i],
+      .RNG.seed = c(6666, 9999, 7777, 3333)[i] 
+    )
+    dump.format(ll)
+  }
+  myinits = c(
+    get_inits(1),
+    get_inits(2),
+    get_inits(3),
+    get_inits(4)
+  )
+  
+  monitor = c(
+    "b.drift.intercept.p",
+    "b.drift.amount.p",
+    "sigma.p",
+    "nondectime.p",
+    "boundary.p",
     "bias.p",
     #  "drift",
     "deviance"
@@ -166,10 +246,7 @@ if (MODEL_NAME == 'linear_drift_variability_no_pooling_ddm')
 # Parameter estimation
 ######################################################################
 
-# Set sampler parameters
-NTHIN = 10
-NCHAINS = 4
-NFINALSAMPLES = min(1000, NSAMPLES)
+
 
 mycolumns = c('N',
               'M',
@@ -184,7 +261,7 @@ myfit <- run.jags(
   monitor = monitor,
   data = jags_data,
   n.chains = NCHAINS,
-    inits = myinits,
+  inits = myinits,
   method = "parallel",
   modules = "wiener",
   burnin = NBURNIN,
