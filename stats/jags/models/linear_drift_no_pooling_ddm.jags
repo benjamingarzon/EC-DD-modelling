@@ -4,18 +4,18 @@ model {
 
         b.drift.intercept.p[p] ~ dnorm(0, 5)
         b.drift.amount.p[p] ~ dnorm(0, 5)
-        boundary.p[p] ~ dunif(0, 10)
+        noise.p[p] ~ dunif(0, 3)
         nondectime.p[p] ~ dunif(0, 4)
         bias.p[p] ~ dbeta(2, 2)T(0.01, 0.99)
 
     }
 
     for (i in 1:M) { # trial level
-        RT.signed[i] ~ dwieners(boundary[i], nondectime[i], bias[i], drift[i], 1)
+        RT.signed[i] ~ dwieners(1, nondectime[i], bias[i], drift[i], noise[i] )
         
         # generate trial-by-trial parameters
         bias[i] <- bias.p[instance[i]]
-        boundary[i] <- boundary.p[instance[i]]
+        noise[i] <- noise.p[instance[i]]
         nondectime[i] <- nondectime.p[instance[i]]
         drift[i] <- b.drift.intercept.p[instance[i]] + b.drift.amount.p[instance[i]]*amount_later_centered[i]
 

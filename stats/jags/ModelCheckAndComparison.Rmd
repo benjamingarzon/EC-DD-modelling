@@ -15,19 +15,16 @@ WDD = file.path(WD, 'all')
 N_samples = 1000
 
 pars = c("b.drift.intercept.mu", "b.drift.intercept.pr",
-         "b.drift.amount.mu",  "b.drift.amount.pr", 
+         "b.drift.amount.mu",#   "b.drift.amount.pr", 
          "nondectime.mu", "nondectime.pr", 
-         "noise.mu","noise.pr", 
+         "noise.mu","boundary.pr", 
          "bias.mu", "bias.kappa", 
          "deviance" )
 
 pars = c(
     "b.drift.intercept.p[2]",
     "b.drift.amount.p[2]",
-  #  "b.drift.pr.p[2]",
-    "sigma.p[2]",
     "nondectime.p[2]",
-    #"noise.p[2]",
     "boundary.p[2]",
     "bias.p[2]",
     "deviance")
@@ -37,10 +34,7 @@ pars = c(
 
 ```{r, fig.width = 20}
 # Load previous fits
-#load('../results/linear_drift_ddm-02-05-2022_00:03-10000-50000-jags.RData') 
-#load('../results/linear_drift_variability_no_pooling_ddm-24-10-2023_19:03-10000-1e+05-jags.RData') 
-#load('../results/linear_drift_variability_no_pooling_ddm-24-10-2023_19:03-10000-1e+05-jags.RData') 
-load('../results/linear_drift_variability_no_pooling_bd_ddm-28-10-2023_20:24-10000-1e+05-jags.RData') 
+load('../results/linear_drift_no_pooling_bd_ddm-05-11-2023_00:44-10000-50000-jags.RData') 
 
 chain1 = as.matrix(coda_samples[[1]])
 chain2 = as.matrix(coda_samples[[2]])

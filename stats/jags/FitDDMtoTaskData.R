@@ -213,7 +213,6 @@ if (MODEL_NAME %in% c('linear_drift_no_pooling_bd_ddm'))
     ll <- list(
       b.drift.intercept.p = runif(numSubjs, -.1, .1),
       b.drift.amount.p = runif(numSubjs, -.1, .1),
-      sigma.p = runif(numSubjs, .1, .9),
       nondectime.p = runif(numSubjs, .01, .1),
       boundary.p = runif(numSubjs, 1.1, 2),
       bias.p = runif(numSubjs, .4, .6),
@@ -232,11 +231,42 @@ if (MODEL_NAME %in% c('linear_drift_no_pooling_bd_ddm'))
   monitor = c(
     "b.drift.intercept.p",
     "b.drift.amount.p",
-    "sigma.p",
     "nondectime.p",
     "boundary.p",
     "bias.p",
-    #  "drift",
+    "deviance"
+  )
+  
+}  
+
+if (MODEL_NAME %in% c('linear_drift_no_pooling_ddm'))
+{
+  get_inits <- function(i){
+    
+    ll <- list(
+      b.drift.intercept.p = runif(numSubjs, -.1, .1),
+      b.drift.amount.p = runif(numSubjs, -.1, .1),
+      nondectime.p = runif(numSubjs, .01, .1),
+      noise.p = runif(numSubjs, 1.1, 2),
+      bias.p = runif(numSubjs, .4, .6),
+      .RNG.name = c("base::Mersenne-Twister","base::Super-Duper", "base::Wichmann-Hill", "base::Marsaglia-Multicarry")[i],
+      .RNG.seed = c(6666, 9999, 7777, 3333)[i] 
+    )
+    dump.format(ll)
+  }
+  myinits = c(
+    get_inits(1),
+    get_inits(2),
+    get_inits(3),
+    get_inits(4)
+  )
+  
+  monitor = c(
+    "b.drift.intercept.p",
+    "b.drift.amount.p",
+    "nondectime.p",
+    "noise.p",
+    "bias.p",
     "deviance"
   )
   

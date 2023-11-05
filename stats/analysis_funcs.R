@@ -14,11 +14,11 @@ conversion_rate = 6 / 8 # USD to GBP
 base_rate = 6
 
 par_labels =  c("b.drift.intercept.p" = "Drift intercept",
-                "b.drift.a mount.p" = "Drift\nsensitivity",
+                "b.drift.amount.p" = "Drift\nsensitivity",
                 "bias.p" = "Bias",
                 "nondectime.p" = "Non-decision\ntime",
-                "noise.p" = "Noise",
-                "sigma.p" = "Drift sd")                
+                #  "noise.p" = "Noise",
+                "boundary.p" = "Boundary")                
 
 ########################################################################################################
 # some aux functions

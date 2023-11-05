@@ -1,3 +1,5 @@
+# Choice probabilities
+
 myplot.choiceprob = ggplot(
   data = choicedata.group,
   aes(
@@ -18,6 +20,54 @@ myplot.choiceprob.order = myplot.choiceprob + facet_grid(. ~ Context_order)
 myplot.choiceprob.group = myplot.choiceprob + facet_grid(. ~ Group)
 print(myplot.choiceprob.order)
 print(myplot.choiceprob.group)
+
+choicedata.mean = choicedata %>%
+  group_by(subjID,
+           Context,
+           context,
+           Context_order,
+           context_order,
+           Group,
+           ev.cut) %>%
+  dplyr::summarise(ev = mean(ev),
+                   prob_late = mean(choice))
+
+choicedata.mean.high = subset(choicedata.mean, Context == 'High volatility')
+choicedata.mean.low = subset(choicedata.mean, Context == 'Low volatility')
+choicedata.diff = merge(
+  choicedata.mean.high,
+  choicedata.mean.low,
+  by = c('subjID', 'Group', 'ev.cut', 'ev'),
+  suffixes = c('.high', '.low')
+)
+
+choicedata.diff$prob_late.diff = choicedata.diff$prob_late.high - choicedata.diff$prob_late.low
+
+choicedata.diff.group = choicedata.diff %>%
+  group_by(ev.cut, Group) %>%
+  dplyr::summarise(
+    prob_late.mean = mean(prob_late.diff),
+    prob_late.sem = sem(prob_late.diff),
+    ev = mean(ev)
+  )
+
+myplot.choiceprob.diff = ggplot(
+  data = choicedata.diff.group,
+  aes(
+    x = ev,
+    y = prob_late.mean,
+    ymin = prob_late.mean - prob_late.sem,
+    ymax = prob_late.mean + prob_late.sem
+  )
+) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(width = 0.5) +
+  xlab('Later amount ($)') +
+  ylab('Frequency of later option') + theme(legend.position = 'bottom', legend.title = element_blank())
+
+myplot.choiceprob.diff.group = myplot.choiceprob.diff + facet_grid(. ~ Group)
+print(myplot.choiceprob.diff.group)
 
 model = fitmodel(
   "choice ~ Group*Context*amount_later_centered + (1|subjID)",
@@ -40,7 +90,7 @@ z = cc.main * mm[, "GroupLow vol. first:ContextLow volatility"]
 + cc.inter * mm[, "GroupLow vol. first:ContextLow volatility:amount_later_centered"]
 choicedata$choice.pred = choicedata$choice - sigmoid(z)
 
-choicedata.median.agg = choicedata %>%
+choicedata.mean.agg = choicedata %>%
   group_by(subjID,
            Context,
            context,
@@ -48,7 +98,7 @@ choicedata.median.agg = choicedata %>%
   dplyr::summarise(ev = mean(ev),
                    prob_late = mean(choice.pred))
 
-choicedata.group.agg = choicedata.median.agg %>%
+choicedata.group.agg = choicedata.mean.agg %>%
   group_by(Context, ev.cut) %>%
   dplyr::summarise(
     prob_late.mean = mean(prob_late),
@@ -72,6 +122,54 @@ myplot.choiceprob.agg = ggplot(
   xlab('Later amount ($)') +
   ylab('Frequency of later option') + theme(legend.position = 'bottom', legend.title = element_blank())
 print(myplot.choiceprob.agg)
+
+choicedata.mean.agg = choicedata %>%
+  group_by(subjID,
+           Context,
+           context,
+           ev.cut) %>%
+  dplyr::summarise(ev = mean(ev),
+                   prob_late = mean(choice.pred))
+
+choicedata.mean.high = subset(choicedata.mean.agg, Context == 'High volatility')
+choicedata.mean.low = subset(choicedata.mean.agg, Context == 'Low volatility')
+
+choicedata.diff = merge(
+  choicedata.mean.high,
+  choicedata.mean.low,
+  by = c('subjID', 'ev.cut', 'ev'),
+  suffixes = c('.high', '.low')
+)
+
+choicedata.diff$prob_late.diff = choicedata.diff$prob_late.high - choicedata.diff$prob_late.low
+
+choicedata.diff.group = choicedata.diff %>%
+  group_by(ev.cut) %>%
+  dplyr::summarise(
+    prob_late.mean = mean(prob_late.diff),
+    prob_late.sem = sem(prob_late.diff),
+    ev = mean(ev)
+  )
+
+myplot.choiceprob.diff.agg = ggplot(
+  data = choicedata.diff.group,
+  aes(
+    x = ev,
+    y = prob_late.mean,
+    ymin = prob_late.mean - prob_late.sem,
+    ymax = prob_late.mean + prob_late.sem
+  )
+) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(width = 0.5) +
+  xlab('Later amount ($)') +
+  ylab('Frequency of later option') + theme(legend.position = 'bottom', legend.title = element_blank())
+
+print(myplot.choiceprob.diff.agg)
+
+
+#  x-y
 
 choicedata.group.wide = dcast(choicedata.group,
                               ev.cut + Context_order ~ Context,
