@@ -11,7 +11,7 @@ model {
     }
 
     for (i in 1:M) { # trial level
-        RT.signed[i] ~ dwieners(1, nondectime[i], bias[i], drift[i], noise[i] )
+        RT.signed[i] ~ dwieners(1, nondectime[i], bias[i], drift[i], noise[i])
         
         # generate trial-by-trial parameters
         bias[i] <- bias.p[instance[i]]

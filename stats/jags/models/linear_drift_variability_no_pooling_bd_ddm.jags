@@ -2,8 +2,8 @@ model {
 
     for (p in 1:N) { # subject level
 
-        b.drift.intercept.p[p] ~ dnorm(0, 1)
-        b.drift.amount.p[p] ~ dnorm(0, 1)
+        b.drift.intercept.p[p] ~ dnorm(0, 5)
+        b.drift.amount.p[p] ~ dnorm(0, 5)
         sigma.p[p] ~ dunif(0, 1)
         b.drift.pr.p[p] = pow(sigma.p[p], -2)
         boundary.p[p] ~ dunif(0, 10)
@@ -15,9 +15,6 @@ model {
     for (i in 1:M) { # trial level
         RT.signed[i] ~ dwieners(boundary[i], nondectime[i], bias[i], drift[i], 1)
         
-        # generate predictions
-        #RT.signed_pred[i] ~ dwieners(boundary[i], nondectime[i], bias[i], drift[i], 1) 
-
         # generate trial-by-trial parameters
         bias[i] <- bias.p[instance[i]]
         boundary[i] <- boundary.p[instance[i]]

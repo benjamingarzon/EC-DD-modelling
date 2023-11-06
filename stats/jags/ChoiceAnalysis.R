@@ -64,7 +64,7 @@ myplot.choiceprob.diff = ggplot(
   geom_point() +
   geom_errorbar(width = 0.5) +
   xlab('Later amount ($)') +
-  ylab('Frequency of later option') + theme(legend.position = 'bottom', legend.title = element_blank())
+  ylab('Difference in frequency of \nlater option (high-low vol.)') + theme(legend.position = 'bottom', legend.title = element_blank())
 
 myplot.choiceprob.diff.group = myplot.choiceprob.diff + facet_grid(. ~ Group)
 print(myplot.choiceprob.diff.group)
@@ -164,7 +164,7 @@ myplot.choiceprob.diff.agg = ggplot(
   geom_point() +
   geom_errorbar(width = 0.5) +
   xlab('Later amount ($)') +
-  ylab('Frequency of later option') + theme(legend.position = 'bottom', legend.title = element_blank())
+  ylab('Difference in frequency of \nlater option (high-low vol.)') + theme(legend.position = 'bottom', legend.title = element_blank())
 
 print(myplot.choiceprob.diff.agg)
 

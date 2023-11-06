@@ -63,52 +63,20 @@ dataList$RT.signed[idx] = -dataList$RT[idx]
 ######################################################################
 # This initialization will facilitate the sampling
 
-inits1 <- list(
-  noise.mu = 0.001,
-  bias.mu = 0.5,
-  b.drift.intercept.mu = 0,
-  b.drift.amount.mu = 0.02,
-  nondectime.mu = 0.01,
-  .RNG.name = "base::Super-Duper",
-  .RNG.seed = 9999
-)
+get_inits <- function(i){
+  
+  ll <- list(
+    b.drift.intercept.mu = runif(numSubjs, -.1, .1),
+    b.drift.amount.mu = runif(numSubjs, -.1, .1),
+    nondectime.mu = runif(numSubjs, .01, .1),
+    noise.mu = runif(numSubjs, .1, .5),
+    bias.mu = runif(numSubjs, .4, .6),
+    .RNG.name = c("base::Mersenne-Twister","base::Super-Duper", "base::Wichmann-Hill", "base::Marsaglia-Multicarry")[i],
+    .RNG.seed = c(6666, 9999, 7777, 3333)[i] 
+  )
+  dump.format(ll)
+}
 
-inits2 <- list(
-  noise.mu = 0.002,
-  bias.mu = 0.5,
-  b.drift.intercept.mu = 0.1,
-  b.drift.amount.mu = 0.01,
-  nondectime.mu = 0.02,
-  .RNG.name = "base::Wichmann-Hill",
-  .RNG.seed = 1234
-)
-
-inits3 <- list(
-  noise.mu = 0.003,
-  bias.mu = 0.5,
-  b.drift.intercept.mu = -0.1,
-  b.drift.amount.mu = -0.01,
-  nondectime.mu = 0.005,
-  .RNG.name = "base::Mersenne-Twister",
-  .RNG.seed = 77
-)
-
-inits4 <- list(
-  noise.mu = 0.001,
-  bias.mu = 0.5,
-  b.drift.intercept.mu = -0.1,
-  b.drift.amount.mu = -0.02,
-  nondectime.mu = 0.002,
-  .RNG.name = "base::Mersenne-Twister",
-  .RNG.seed = 6666
-)
-
-myinits = c(
-  dump.format(inits1),
-  dump.format(inits2),
-  dump.format(inits3),
-  dump.format(inits4)
-)
 
 monitor = c(
   "b.drift.intercept.mu",
@@ -137,7 +105,6 @@ if (MODEL_NAME %in% c('linear_drift_variability_no_pooling_ddm'))
    ll <- list(
     b.drift.intercept.p = runif(numSubjs, -.1, .1),
     b.drift.amount.p = runif(numSubjs, -.1, .1),
-  #  b.drift.pr.p = runif(numSubjs, 1, 10),
     sigma.p = runif(numSubjs, .1, .9),
     nondectime.p = runif(numSubjs, .01, .1),
     noise.p = runif(numSubjs, .1, .5),
@@ -147,12 +114,6 @@ if (MODEL_NAME %in% c('linear_drift_variability_no_pooling_ddm'))
   )
    dump.format(ll)
   }
-  myinits = c(
-    get_inits(1),
-    get_inits(2),
-    get_inits(3),
-    get_inits(4)
-  )
 
   monitor = c(
     "b.drift.intercept.p",
@@ -162,7 +123,6 @@ if (MODEL_NAME %in% c('linear_drift_variability_no_pooling_ddm'))
     "nondectime.p",
     "noise.p",
     "bias.p",
-    #  "drift",
     "deviance"
   )
   
@@ -175,7 +135,6 @@ if (MODEL_NAME %in% c('linear_drift_variability_no_pooling_bd_ddm'))
     ll <- list(
       b.drift.intercept.p = runif(numSubjs, -.1, .1),
       b.drift.amount.p = runif(numSubjs, -.1, .1),
-      #  b.drift.pr.p = runif(numSubjs, 1, 10),
       sigma.p = runif(numSubjs, .1, .9),
       nondectime.p = runif(numSubjs, .01, .1),
       boundary.p = runif(numSubjs, 1.1, 2),
@@ -185,13 +144,7 @@ if (MODEL_NAME %in% c('linear_drift_variability_no_pooling_bd_ddm'))
     )
     dump.format(ll)
   }
-  myinits = c(
-    get_inits(1),
-    get_inits(2),
-    get_inits(3),
-    get_inits(4)
-  )
-  
+
   monitor = c(
     "b.drift.intercept.p",
     "b.drift.amount.p",
@@ -200,7 +153,6 @@ if (MODEL_NAME %in% c('linear_drift_variability_no_pooling_bd_ddm'))
     "nondectime.p",
     "boundary.p",
     "bias.p",
-    #  "drift",
     "deviance"
   )
   
@@ -221,13 +173,7 @@ if (MODEL_NAME %in% c('linear_drift_no_pooling_bd_ddm'))
     )
     dump.format(ll)
   }
-  myinits = c(
-    get_inits(1),
-    get_inits(2),
-    get_inits(3),
-    get_inits(4)
-  )
-  
+
   monitor = c(
     "b.drift.intercept.p",
     "b.drift.amount.p",
@@ -254,13 +200,7 @@ if (MODEL_NAME %in% c('linear_drift_no_pooling_ddm'))
     )
     dump.format(ll)
   }
-  myinits = c(
-    get_inits(1),
-    get_inits(2),
-    get_inits(3),
-    get_inits(4)
-  )
-  
+
   monitor = c(
     "b.drift.intercept.p",
     "b.drift.amount.p",
@@ -272,12 +212,16 @@ if (MODEL_NAME %in% c('linear_drift_no_pooling_ddm'))
   
 }  
 
+myinits = c(
+  get_inits(1),
+  get_inits(2),
+  get_inits(3),
+  get_inits(4)
+)
+
 ######################################################################
 # Parameter estimation
 ######################################################################
-
-
-
 mycolumns = c('N',
               'M',
               'RT.signed',

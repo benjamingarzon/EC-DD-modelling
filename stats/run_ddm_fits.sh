@@ -10,9 +10,15 @@ cd ../jags
 
 NSAMPLES=10000
 NBURNIN=50000
-#Rscript FitDDMtoTaskData.R processed_data_censored.RData linear_drift_variability_no_pooling_ddm $NSAMPLES $NBURNIN > ../logs/log-linear_drift_variability_no_pooling_ddm-${NSAMPLES}-${NBURNIN}.txt &
-# Rscript FitDDMtoTaskData.R processed_data_censored.RData linear_drift_no_pooling_bd_ddm $NSAMPLES $NBURNIN > ../logs/log-linear_drift_no_pooling_bd_ddm-${NSAMPLES}-${NBURNIN}.txt &
+
+Rscript FitDDMtoTaskData.R processed_data_censored.RData linear_drift_variability_no_pooling_ddm $NSAMPLES $NBURNIN > ../logs/log-linear_drift_variability_no_pooling_ddm-${NSAMPLES}-${NBURNIN}.txt &
 Rscript FitDDMtoTaskData.R processed_data_censored.RData linear_drift_no_pooling_ddm $NSAMPLES $NBURNIN > ../logs/log-linear_drift_no_pooling_ddm-${NSAMPLES}-${NBURNIN}.txt &
+
+Rscript FitDDMtoTaskData.R processed_data_censored.RData linear_drift_variability_no_pooling_bd_ddm $NSAMPLES $NBURNIN > ../logs/log-linear_drift_variability_no_pooling_bd_ddm-${NSAMPLES}-${NBURNIN}.txt &
+Rscript FitDDMtoTaskData.R processed_data_censored.RData linear_drift_no_pooling_bd_ddm $NSAMPLES $NBURNIN > ../logs/log-linear_drift_no_pooling_bd_ddm-${NSAMPLES}-${NBURNIN}.txt &
+
+
+
 #NBURNIN=10000
 #Rscript FitDDMtoTaskData.R processed_data_censored.RData linear_drift_variability_no_pooling_ddm $NSAMPLES $NBURNIN > ../logs/log-linear_drift_variability_no_pooling_ddm-${NSAMPLES}-${NBURNIN}.txt
 
