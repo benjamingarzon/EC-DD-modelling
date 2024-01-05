@@ -15,7 +15,6 @@ NBURNIN=50000 #
 Rscript FitDDMtoTaskData.R processed_data_censored.RData linear_drift_no_pooling_bd_ddm $NSAMPLES $NBURNIN > ../logs/log-linear_drift_no_pooling_ddm-${NSAMPLES}-${NBURNIN}.txt &
 #Rscript FitDDMtoTaskData.R processed_data_censored.RData linear_drift_no_pooling_ddm $NSAMPLES $NBURNIN > ../logs/log-linear_drift_no_pooling_ddm-${NSAMPLES}-${NBURNIN}.txt &
 
-exit 1
 
 Rscript FitDDMtoTaskData.R processed_data_censored_220.RData linear_drift_no_pooling_ddm $NSAMPLES $NBURNIN > ../logs/log-linear_drift_no_pooling_ddm-${NSAMPLES}-${NBURNIN}_220.txt &
 Rscript FitDDMtoTaskData.R processed_data_censored_220.RData linear_drift_no_pooling_bd_ddm $NSAMPLES $NBURNIN > ../logs/log-linear_drift_no_pooling_bd_ddm-${NSAMPLES}-${NBURNIN}_220.txt &

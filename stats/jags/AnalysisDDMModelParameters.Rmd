@@ -70,7 +70,7 @@ numPars <- 5
 allIndPars <- array(NA, c(numSubjs, numPars))
 allIndPars <- as.data.frame(allIndPars)
 #parVals$boundary.p = parVals$noise.p
-parVals$bias.p = parVals$SNR.p
+#parVals$bias.p = parVals$SNR.p
 for (i in 1:numSubjs) {
   allIndPars[i,] <- c(
     mean(parVals$b.drift.intercept.p[i,]),

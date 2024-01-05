@@ -8,7 +8,7 @@ model {
         b.drift.amount.p[p] = alpha*noise.p[p]
         nondectime.p[p] ~ dunif(0, 4)
         bias.p[p] ~ dbeta(2, 2)T(0.01, 0.99)
-        SNR.p[p] <- b.drift.amount.p[p]/noise.p[p]
+        SNR.p[p] <- alpha
 
     }
 
