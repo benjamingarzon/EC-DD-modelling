@@ -1,0 +1,25 @@
+model {
+    alpha ~ dnorm(0, 100)
+
+    for (p in 1:N) { # subject level
+
+        b.drift.intercept.p[p] ~ dnorm(0, 5)
+        noise.p[p] ~ dunif(0, 3)
+        b.drift.amount.p[p] = alpha*noise.p[p]
+        nondectime.p[p] ~ dunif(0, 4)
+        bias.p[p] ~ dbeta(2, 2)T(0.01, 0.99)
+        SNR.p[p] <- b.drift.amount.p[p]/noise.p[p]
+
+    }
+
+    for (i in 1:M) { # trial level
+        RT.signed[i] ~ dwieners(1, nondectime[i], bias[i], drift[i], noise[i])
+        
+        # generate trial-by-trial parameters
+        bias[i] <- bias.p[instance[i]]
+        noise[i] <- noise.p[instance[i]]
+        nondectime[i] <- nondectime.p[instance[i]]
+        drift[i] <- b.drift.intercept.p[instance[i]] + b.drift.amount.p[instance[i]]*amount_later_centered[i]
+        
+    }
+}

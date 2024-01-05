@@ -1,0 +1,49 @@
+
+## Extract parameters
+
+```{r}
+# posterior predictive checks
+rm(list = ls())
+library(runjags)
+library(rjags)
+library(MCMCvis)
+library(coda)
+source('../analysis_funcs.R')
+WD = '../../data'
+WDD = file.path(WD, 'all')
+
+get_metrics = function(filename){
+  
+  load(filename)
+  #ped.fit = runjags::extract(myfit, what = "ped")
+  #dic.fit = runjags::extract(myfit, what = "dic")
+  print(filename)
+  #print(ped.fit)
+  
+  deviance = unlist(myfit_samples[, "deviance"] )
+  
+  # Calculate posterior mean of deviance
+  
+  D.bar <- mean(deviance)
+
+  # Calculate posterior variance of deviance
+  varD <- var(deviance)
+  print(D.bar)
+  print(varD)
+  # Calculate DIC
+  dic.fit <- D.bar + 0.5 * varD
+  print(dic.fit)
+  
+  return(dic.fit)
+} 
+
+```
+
+
+```{r, fig.width = 20}
+m1.dic = get_metrics('../results/linear_drift_no_pooling_ddm-processed_data_censored-22-12-2023_23:53-10000-50000-jags.RData') 
+m2.dic = get_metrics('../results/linear_drift_no_pooling_bd_ddm-processed_data_censored-27-12-2023_20:07-10000-50000-jags.RData') 
+m3.dic = get_metrics('../results/linear_drift_no_pooling_corr_ddm-processed_data_censored-27-12-2023_07:59-10000-50000-jags.RData') 
+
+```
+
