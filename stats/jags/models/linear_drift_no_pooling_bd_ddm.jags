@@ -7,6 +7,7 @@ model {
         boundary.p[p] ~ dunif(0, 10)
         nondectime.p[p] ~ dunif(0, 4)
         bias.p[p] ~ dbeta(2, 2)T(0.01, 0.99)
+        SNR.p[p] <- b.drift.amount.p[p]/boundary.p[p]
 
     }
 

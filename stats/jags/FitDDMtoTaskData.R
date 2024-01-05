@@ -21,14 +21,14 @@ NCHAINS = 4
 ######################################################################
 # Arguments
 ######################################################################
-if (F) {
+if (T) {
   # tests
   INPUT_FILE = 'processed_data_censored.RData'
   #  INPUT_FILE = 'processed_data.RData'
   #MODEL_NAME = 'linear_drift_ddm'
-  MODEL_NAME = 'linear_drift_variability_no_pooling_bd_ddm'
-  NSAMPLES = 1000
-  NBURNIN = 1000
+  MODEL_NAME = 'linear_drift_no_pooling_bd_ddm'
+  NSAMPLES = 500
+  NBURNIN = 500
 } else {
   args = commandArgs(trailingOnly = TRUE)
   INPUT_FILE = args[1]
@@ -207,6 +207,36 @@ if (MODEL_NAME %in% c('linear_drift_no_pooling_ddm'))
     "nondectime.p",
     "noise.p",
     "bias.p",
+    "SNR.p",
+    "deviance"
+  )
+  
+}  
+
+if (MODEL_NAME %in% c('linear_drift_no_pooling_corr_ddm'))
+{
+  get_inits <- function(i){
+    
+    ll <- list(
+      b.drift.intercept.p = runif(numSubjs, -.1, .1),
+      alpha = runif(1, -.1, .1),
+      nondectime.p = runif(numSubjs, .01, .1),
+      noise.p = runif(numSubjs, 1.1, 2),
+      bias.p = runif(numSubjs, .4, .6),
+      .RNG.name = c("base::Mersenne-Twister","base::Super-Duper", "base::Wichmann-Hill", "base::Marsaglia-Multicarry")[i],
+      .RNG.seed = c(6666, 9999, 7777, 3333)[i] 
+    )
+    dump.format(ll)
+  }
+  
+  monitor = c(
+    "b.drift.intercept.p",
+    "b.drift.amount.p",
+    "alpha",
+    "nondectime.p",
+    "noise.p",
+    "bias.p",
+    "SNR.p",
     "deviance"
   )
   
@@ -240,8 +270,7 @@ myfit <- run.jags(
   modules = "wiener",
   burnin = NBURNIN,
   sample = NSAMPLES,
-  thin = NTHIN
-)
+  thin = NTHIN)
 
 
 
@@ -254,9 +283,11 @@ myfit_rjags = as.jags(myfit)
 myfit_samples <- rjags::coda.samples(myfit_rjags,
                                      variable.names = monitor,
                                      n.iter = NFINALSAMPLES)
-
 #dic.fit = dic.samples(myfit_rjags, n.iter = NFINALSAMPLES)
 #dic.fit = extract(myfit, what = "dic", progres.bar = 'text', by = 100, n.iter = 10)
+
+summary(s$deviance, mean)
+summary(s$pD, mean)
 
 coda_samples = as.mcmc.list(myfit)
 
@@ -270,6 +301,8 @@ save(
   file = paste0(
     '../results/',
     MODEL_NAME,
+    '-',
+    gsub(pattern = "\\.RData$", "", INPUT_FILE),
     '-',
     datetime,
     '-',
@@ -311,6 +344,8 @@ save(
   file = paste0(
     '../results/',
     MODEL_NAME,
+    '-',
+    gsub(pattern = "\\.RData$", "", INPUT_FILE),
     '-',
     datetime,
     '-',

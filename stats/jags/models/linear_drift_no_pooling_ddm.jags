@@ -7,6 +7,7 @@ model {
         noise.p[p] ~ dunif(0, 3)
         nondectime.p[p] ~ dunif(0, 4)
         bias.p[p] ~ dbeta(2, 2)T(0.01, 0.99)
+        SNR.p[p] <- b.drift.amount.p[p]/noise.p[p]
 
     }
 
@@ -18,6 +19,6 @@ model {
         noise[i] <- noise.p[instance[i]]
         nondectime[i] <- nondectime.p[instance[i]]
         drift[i] <- b.drift.intercept.p[instance[i]] + b.drift.amount.p[instance[i]]*amount_later_centered[i]
-
+        
     }
 }

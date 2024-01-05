@@ -12,13 +12,18 @@ WDD = file.path(WD, 'experiment')
 mytheme = theme_classic(base_size = 13) + theme(legend.position = 'bottom', legend.title = element_blank())
 theme_set(mytheme)
 # Load previous fit
-#MYFILE = '../results/linear_drift_ddm-02-05-2022_00:03-10000-50000-jags-pars.RData'
-MYFILE = '../results/linear_drift_no_pooling_bd_ddm-05-11-2023_00:44-10000-50000-jags-pars.RData'
+MYFILE = '../results/linear_drift_no_pooling_ddm-processed_data_censored_100-22-12-2023_21:49-10000-50000-jags-pars.RData'
+#MYFILE = '../results/linear_drift_no_pooling_corr_ddm-processed_data_censored-27-12-2023_07:59-10000-50000-jags-pars.RData'
+MYFILE = '../results/linear_drift_no_pooling_bd_ddm-processed_data_censored-27-12-2023_20:07-10000-50000-jags-pars.RData'
+MYFILE = '../results/linear_drift_no_pooling_ddm-processed_data_censored.RData-22-12-2023_12:48-1000-5000-jags-pars.RData'
+
 load(MYFILE)
 numSubjs = dataList$N
 
 # Load data
 load(file.path(WDD, "processed_data_censored.RData"))
+#load(file.path(WDD, "processed_data_censored_220.RData"))
+#load(file.path(WDD, "processed_data_censored_100.RData"))
 grouping_var = 'subj_context'
 choicedata.common$subj_context = paste(choicedata.common$subjID, choicedata.common$context)
 dataList = organize_data(choicedata.common, grouping_var, long = T)
@@ -64,15 +69,15 @@ numPars <- 5
 # Individual parameters (e.g., individual posterior means)
 allIndPars <- array(NA, c(numSubjs, numPars))
 allIndPars <- as.data.frame(allIndPars)
-
+#parVals$boundary.p = parVals$noise.p
+parVals$bias.p = parVals$SNR.p
 for (i in 1:numSubjs) {
   allIndPars[i,] <- c(
     mean(parVals$b.drift.intercept.p[i,]),
     mean(parVals$b.drift.amount.p[i,]),
     mean(parVals$bias.p[i,]),
     mean(parVals$nondectime.p[i,]),
-    mean(parVals$boundary.p[i,]),
-    mean(parVals$sigma.p[i,])
+    mean(parVals$noise.p[i,])
   )
 }
 
@@ -83,7 +88,7 @@ colnames(allIndPars) <- c(
   "b.drift.amount.p",
   "bias.p",
   "nondectime.p",
-  "boundary.p",
+  "noise.p",
   "subjID",
   "context",
   "context_num",
@@ -153,7 +158,7 @@ for (var in c("context",  "background_col", "context_order"))
   get_par_jags("b.drift.amount.p", var)
   get_par_jags("bias.p", var)
   get_par_jags("nondectime.p", var)
-  get_par_jags("boundary.p", var)
+  get_par_jags("noise.p", var)
 
   }
 
@@ -161,7 +166,7 @@ get_par_jags("b.drift.intercept.p", var2 = "Context", var = "context_order")
 get_par_jags("b.drift.amount.p", var2 = "Context", var = "context_order")
 get_par_jags("bias.p", var2 = "Context", var = "context_order")
 get_par_jags("nondectime.p", var2 = "Context", var = "context_order")
-get_par_jags("boundary.p", var2 = "Context", var = "context_order")
+get_par_jags("noise.p", var2 = "Context", var = "context_order")
 
 context_sigmas = c(5, 2, 1)
 
@@ -171,7 +176,7 @@ mypars = c("b.drift.intercept.p",
            "b.drift.amount.p",
            "bias.p",
            "nondectime.p",
-           "boundary.p")
+           "noise.p")
 
 for (mypar in mypars) {
   print("------------------------------------")
@@ -226,7 +231,7 @@ rating_par_names = c("bid.diff" = "WTP range",
 choice_par_names = c(
   "b.drift.intercept.p" = "Drift intercept",
   "b.drift.amount.p" = "Drift sensitivity",
-  "boundary.p" = "Boundary",
+  "noise.p" = "Noise",
   "bias.p" = "Bias",
   "nondectime.p" = "Non-decision time",
   "sigma.p" = "Drift sd"
@@ -486,8 +491,8 @@ print(fig.d)
 
 
 ```{r}
-filein = '../results/results_text.txt'
-fileout = '../results/results_text_fixed.txt'
+filein = '../results/results_text_noise.txt'
+fileout = '../results/results_text_fixed_noise.txt'
 text = readLines(filein)
 print(statslist)
 text.new = NULL

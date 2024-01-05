@@ -133,7 +133,8 @@ allIndPars.sum <-
 parameters = c("nondectime.p",
                "b.drift.intercept.p",
                "b.drift.amount.p",
-               "boundary.p",
+               "noise.p",
+               # "boundary.p",
                "bias.p")
 
 tests = c("ContextLow volatility",

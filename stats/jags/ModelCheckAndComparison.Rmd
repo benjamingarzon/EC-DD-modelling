@@ -25,8 +25,10 @@ pars = c(
     "b.drift.intercept.p[2]",
     "b.drift.amount.p[2]",
     "nondectime.p[2]",
-    "boundary.p[2]",
+  #  "boundary.p[2]",
+    "noise.p[2]",
     "bias.p[2]",
+    "SNR.p[2]",
     "deviance")
 
 ```
@@ -34,7 +36,8 @@ pars = c(
 
 ```{r, fig.width = 20}
 # Load previous fits
-load('../results/linear_drift_no_pooling_bd_ddm-05-11-2023_00:44-10000-50000-jags.RData') 
+#load('../results/linear_drift_no_pooling_ddm-processed_data_censored-22-12-2023_23:53-10000-50000-jags.RData') 
+load('../results/linear_drift_no_pooling_corr_ddm-processed_data_censored-27-12-2023_07:59-10000-50000-jags.RData') 
 
 chain1 = as.matrix(coda_samples[[1]])
 chain2 = as.matrix(coda_samples[[2]])
@@ -46,16 +49,30 @@ nsamp = nrow(chain1)
 chaincolor = c(rep('red', nsamp), rep('blue', nsamp), rep('green', nsamp), rep('yellow', nsamp))
 #plot(chain[, 'gamma.mu'], chain[, 'b.drift.amount.pr'], col = chaincolor, cex = 0.1, pch = 20)
 
-#pars = monitor[ c(grep('\\.mu', monitor), grep('\\.pr$', monitor), grep('\\.kappa', monitor))] 
+if (F){ 
+pars = monitor[ c(grep('\\.mu', monitor), grep('\\.pr$', monitor), grep('\\.kappa', monitor))] 
 pairs(chain[, pars[-c(length(pars))] ], col = chaincolor, pch = 20, cex = 0.1)
 cc = cor(chain[, pars[-c(length(pars))] ])
 View(cc)
 #pairs(chain[, pars] , col = chaincolor, pch = 20, cex = 0.1)
-
+}
 
 ics = check_jags_model(myfit, myfit_rjags, myfit_samples)
+```
+
+
+
+```{r, fig.width = 20}
+dic.fit = dic.samples(myfit_rjags$model, type="popt", n.iter = 10, thin=10)
+#dic.fit = extract(myfit, what = "dic", progres.bar = 'text', by = 100, n.iter = 10)
+#dic.fit = runjags::extract(myfit, what = "dic", force.resample = F, progres.bar = 'text', thin = 100, n.iter = 10)
+#ped.fit = runjags::extract(myfit, what = "ped")
+#dic.fit = runjags::extract(myfit, what = "dic")
 
 ```
+
+
+
 ```{r}
 hist(rgamma(10000, shape = 1, rate = 0.05), 100, xlim = c(0, 150))
 hist(rgamma(10000, shape = 1, rate = 0.1), 100, xlim = c(0, 50))
