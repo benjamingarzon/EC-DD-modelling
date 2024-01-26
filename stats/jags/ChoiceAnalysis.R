@@ -14,7 +14,7 @@ myplot.choiceprob = ggplot(
   geom_point() +
   geom_errorbar(width = 0.5) +
   xlab('Later amount ($)') +
-  ylab('Frequency of later option') + theme(legend.position = 'bottom', legend.title = element_blank())
+  ylab('Frequency of \nlater option') + theme(legend.position = 'bottom', legend.title = element_blank())
 
 myplot.choiceprob.order = myplot.choiceprob + facet_grid(. ~ Context_order)
 myplot.choiceprob.group = myplot.choiceprob + facet_grid(. ~ Group)
@@ -120,7 +120,7 @@ myplot.choiceprob.agg = ggplot(
   geom_point() +
   geom_errorbar(width = 0.5) +
   xlab('Later amount ($)') +
-  ylab('Frequency of later option') + theme(legend.position = 'bottom', legend.title = element_blank())
+  ylab('Frequency of \nlater option') + theme(legend.position = 'bottom', legend.title = element_blank())
 print(myplot.choiceprob.agg)
 
 choicedata.mean.agg = choicedata %>%

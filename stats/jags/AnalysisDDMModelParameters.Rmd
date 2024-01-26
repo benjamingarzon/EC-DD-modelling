@@ -9,21 +9,21 @@ statslist = list()
 
 WD = '../../data'
 WDD = file.path(WD, 'experiment')
-mytheme = theme_classic(base_size = 13) + theme(legend.position = 'bottom', legend.title = element_blank())
+mytheme = theme_classic(base_size = 11) + theme(legend.position = 'bottom', legend.title = element_blank())
 theme_set(mytheme)
 # Load previous fit
-MYFILE = '../results/linear_drift_no_pooling_ddm-processed_data_censored_100-22-12-2023_21:49-10000-50000-jags-pars.RData'
 #MYFILE = '../results/linear_drift_no_pooling_corr_ddm-processed_data_censored-27-12-2023_07:59-10000-50000-jags-pars.RData'
-MYFILE = '../results/linear_drift_no_pooling_bd_ddm-processed_data_censored-27-12-2023_20:07-10000-50000-jags-pars.RData'
-MYFILE = '../results/linear_drift_no_pooling_ddm-processed_data_censored.RData-22-12-2023_12:48-1000-5000-jags-pars.RData'
+#MYFILE = '../results/linear_drift_no_pooling_bd_ddm-processed_data_censored-27-12-2023_20:07-10000-50000-jags-pars.RData'
+#MYFILE = '../results/linear_drift_no_pooling_ddm-processed_data_censored_100-22-12-2023_21:49-10000-50000-jags-pars.RData'
+MYFILE = '../results/linear_drift_no_pooling_ddm-processed_data_censored-22-12-2023_23:53-10000-50000-jags-pars.RData'
 
 load(MYFILE)
 numSubjs = dataList$N
 
 # Load data
-load(file.path(WDD, "processed_data_censored.RData"))
 #load(file.path(WDD, "processed_data_censored_220.RData"))
 #load(file.path(WDD, "processed_data_censored_100.RData"))
+load(file.path(WDD, "processed_data_censored.RData"))
 grouping_var = 'subj_context'
 choicedata.common$subj_context = paste(choicedata.common$subjID, choicedata.common$context)
 dataList = organize_data(choicedata.common, grouping_var, long = T)
@@ -410,20 +410,47 @@ fig.a.4 = ggarrange(
   labels = c('F', 'G')
 )
 
+# 
+# fig.a.2 = ggarrange(
+#   myplot.RT.choice.group,
+#   myplot.RT.choice.agg,
+#   myplot.choiceprob.group,
+#   ncol = 3,
+#   nrow = 1,
+#   labels = c('B', 'C', 'D')
+# )
+# fig.a.3 = ggarrange(
+#   myplot.choiceprob.agg,
+#   myplot.choiceprob.diff.group,
+#   myplot.choiceprob.diff.agg,
+#   ncol = 3,
+#   nrow = 1,
+#   labels = c('E', 'F', 'G')
+# )
+# 
 
 # fig.a = ggarrange(myplot.RT.choice.group, myplot.RT.choice.agg,
 #                    myplot.choiceprob.group, myplot.choiceprob.agg,
 #                    ncol=2, nrow=2, labels = c('A', 'B', 'C', 'D'))
 
+fig.a.l = ggarrange(fig.a.2, fig.a.3, fig.a.4,
+                  ncol = 3, nrow = 1)
+
 fig.a = ggarrange(fig.a.1, fig.a.2, fig.a.3, fig.a.4,
-                  ncol = 1, nrow = 4)
+                   ncol = 1, nrow = 4)
+
+#fig.a = ggarrange(fig.a.1, fig.a.l,
+#                  ncol = 1, nrow = 2, heights = c(1, 2))
+
+# fig.a = ggarrange(fig.a.1, fig.a.2, fig.a.3, 
+#                   ncol = 1, nrow = 3)
 
 ggsave(
   filename = file.path(FIGS_DIR, "Choices.png"),
   plot = fig.a,
   dpi = DPI,
   width = WIDTH1COL * 2,
-  height = HEIGHT1ROW * 4
+  height = HEIGHT1ROW * 3
 )
 
 fig.b = ggarrange(
