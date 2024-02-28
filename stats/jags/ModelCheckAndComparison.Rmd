@@ -28,7 +28,6 @@ pars = c(
   #  "boundary.p[2]",
     "noise.p[2]",
     "bias.p[2]",
-    "SNR.p[2]",
     "deviance")
 
 ```
@@ -36,8 +35,8 @@ pars = c(
 
 ```{r, fig.width = 20}
 # Load previous fits
+load('../results/linear_drift_no_pooling_ddm-processed_data_censored-22-12-2023_23:53-10000-50000-jags.RData') 
 #load('../results/linear_drift_no_pooling_ddm-processed_data_censored-22-12-2023_23:53-10000-50000-jags.RData') 
-load('../results/linear_drift_no_pooling_corr_ddm-processed_data_censored-27-12-2023_07:59-10000-50000-jags.RData') 
 
 chain1 = as.matrix(coda_samples[[1]])
 chain2 = as.matrix(coda_samples[[2]])
@@ -63,7 +62,7 @@ ics = check_jags_model(myfit, myfit_rjags, myfit_samples)
 
 
 ```{r, fig.width = 20}
-dic.fit = dic.samples(myfit_rjags$model, type="popt", n.iter = 10, thin=10)
+#dic.fit = dic.samples(myfit_rjags$model, type="popt", n.iter = 10, thin=10)
 #dic.fit = extract(myfit, what = "dic", progres.bar = 'text', by = 100, n.iter = 10)
 #dic.fit = runjags::extract(myfit, what = "dic", force.resample = F, progres.bar = 'text', thin = 100, n.iter = 10)
 #ped.fit = runjags::extract(myfit, what = "ped")

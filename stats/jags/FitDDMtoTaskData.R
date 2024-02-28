@@ -21,7 +21,7 @@ NCHAINS = 4
 ######################################################################
 # Arguments
 ######################################################################
-if (T) {
+if (F) {
   # tests
   INPUT_FILE = 'processed_data_censored.RData'
   #  INPUT_FILE = 'processed_data.RData'
@@ -285,9 +285,6 @@ myfit_samples <- rjags::coda.samples(myfit_rjags,
                                      n.iter = NFINALSAMPLES)
 #dic.fit = dic.samples(myfit_rjags, n.iter = NFINALSAMPLES)
 #dic.fit = extract(myfit, what = "dic", progres.bar = 'text', by = 100, n.iter = 10)
-
-summary(s$deviance, mean)
-summary(s$pD, mean)
 
 coda_samples = as.mcmc.list(myfit)
 
