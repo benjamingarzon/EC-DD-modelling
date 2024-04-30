@@ -1,0 +1,368 @@
+---
+title: "Parameter Recovery"
+output: html_notebook
+---
+
+```{r}
+set.seed(122)
+rm(list = ls())
+library(testit)
+library(diffIRT)
+source("../analysis_funcs.R")
+
+mytheme = theme_classic(base_size = 9) + theme(legend.position = 'bottom', legend.title = element_blank())
+theme_set(mytheme)
+
+WD = '../../data'
+WDD = file.path(WD, 'experiment')
+
+PARSFILE = '../results/linear_drift_no_pooling_ddm-processed_data_censored-22-12-2023_23:53-10000-50000-jags-pars.RData'
+OUTPUTFILE = 'processed_data_censored-simulated.RData'
+load(PARSFILE)
+load(file.path(WDD, "processed_data_censored.RData"))
+
+```
+
+```{r}
+numSubj = dataList$N
+
+grouping_var = 'subj_context'
+choicedata.common$subj_context = paste(choicedata.common$subjID, choicedata.common$context)
+dataList = organize_data(choicedata.common, grouping_var, long = T)
+subjList <-
+  unique(choicedata.common[c('subjID',
+                             'context',
+                             'context_num',
+                             'context_order',
+                             'background_col',
+                             grouping_var)])
+
+choicedata.common = choicedata.common %>% mutate(
+  Context = ifelse(context == 'c1', 'High volatility', 'Low volatility'),
+  Choice = ifelse(choice == 1, 'Later option', 'Immediate option'),
+  Context_order = ifelse(context_order == 1, 'First context', 'Second context'),
+  Group =  ifelse(
+    context_order == 1 &
+      context == 'c1' |
+      context_order == 2 & context == 'c2' ,
+    'High vol. first',
+    'Low vol. first'
+  )
+)
+
+```
+
+# Extract parameters
+
+```{r}
+extract_parameters <- function(parVals, numSubj, subjList){
+numPars <- 5
+# Individual parameters (e.g., individual posterior means)
+allIndPars <- array(NA, c(numSubj, numPars))
+allIndPars <- as.data.frame(allIndPars)
+
+for (i in 1:numSubj) {
+  allIndPars[i,] <- c(
+    mean(parVals$b.drift.intercept.p[i,]),
+    mean(parVals$b.drift.amount.p[i,]),
+    mean(parVals$bias.p[i,]),
+    mean(parVals$nondectime.p[i,]),
+    mean(parVals$noise.p[i,])
+  )
+}
+
+print(dim(allIndPars))
+allIndPars = cbind(allIndPars, subjList[-ncol(subjList)])
+print(dim(allIndPars))
+
+colnames(allIndPars) <- c(
+  "b.drift.intercept.p",
+  "b.drift.amount.p",
+  "bias.p",
+  "nondectime.p",
+  "noise.p",
+  "subjID",
+  "context",
+  "context_num",
+  "context_order",
+  "background_col"
+)
+
+allIndPars = allIndPars %>% mutate(
+  Context = ifelse(context == 'c1', 'High volatility', 'Low volatility'),
+  Context_short = ifelse(context == 'c1', 'High', 'Low'),
+  Context_order = ifelse(context_order == 1, 'First context', 'Second context'),
+  Group =  ifelse(
+    context_order == 1 &
+      context == 'c1' |
+      context_order == 2 & context == 'c2' ,
+    'High vol. first',
+    'Low vol. first'
+  )
+)
+
+return(allIndPars)
+}
+
+allIndPars <- extract_parameters(parVals, numSubj, subjList)
+```
+
+```{r}
+mypars <- c('b.drift.intercept.p','b.drift.amount.p','bias.p','nondectime.p','noise.p')
+
+get_range <- function(x){
+  r <- range(x)
+  diff(r)*c(-.05, .05) + r
+}
+
+ranges <- apply(allIndPars[mypars], 2, get_range) 
+```
+
+# Simulate data
+
+```{r}
+library(runjags)
+modelstr <- '
+data {
+    for (i in 1:M) { # trial level
+        # generate trial-by-trial parameters
+        drift[i] <- b.drift.intercept.p[i] + b.drift.amount.p[i]*amount_later_centered[i]
+        
+        RT.signed[i] ~ dwieners(1, nondectime.p[i], bias.p[i], drift[i], noise.p[i])
+        
+        
+    }
+}
+
+model{
+fake <- 0
+}
+  
+'
+```
+
+```{r}
+eval_fork <- function(..., timeout=60){
+
+  #this limit must always be higher than the timeout on the fork!
+  setTimeLimit(timeout+5);      
+
+  #dispatch based on method
+  ##NOTE!!!!! Due to a bug in mcparallel, we cannot use silent=TRUE for now.
+  myfork <- parallel::mcparallel({
+    eval(...)
+  }, silent=FALSE);
+
+  #wait max n seconds for a result.
+  myresult <- parallel::mccollect(myfork, wait=FALSE, timeout=timeout);
+
+  #try to avoid bug/race condition where mccollect returns null without waiting full timeout.
+  #see https://github.com/jeroenooms/opencpu/issues/131
+  #waits for max another 2 seconds if proc looks dead 
+  totaltime <- 0
+  starttime <- Sys.time()
+  while(is.null(myresult) && totaltime < timeout && totaltime < 2) {
+     Sys.sleep(.1)
+     enddtime <- Sys.time();
+     totaltime <- as.numeric(enddtime - starttime, units="secs")
+     myresult <- parallel::mccollect(myfork, wait = FALSE, timeout = timeout);
+  }
+
+  #kill fork after collect has returned
+  tools::pskill(myfork$pid, tools::SIGKILL);    
+  tools::pskill(-1 * myfork$pid, tools::SIGKILL);  
+
+  #clean up:
+  parallel::mccollect(myfork, wait=FALSE);
+
+  #timeout?
+  if(is.null(myresult)){
+    stop("R call did not return within ", timeout, " seconds. Terminating process.", call.=FALSE);      
+  }
+
+  #move this to distinguish between timeout and NULL returns
+  myresult <- myresult[[1]];
+
+  #reset timer
+  setTimeLimit();     
+
+  #forks don't throw errors themselves
+  if(inherits(myresult,"try-error")){
+    #stop(myresult, call.=FALSE);
+    stop(attr(myresult, "condition"));
+  }
+
+  #send the buffered response
+  return(myresult);  
+}
+```
+
+```{r}
+
+allIndPars.names <- colnames(allIndPars)[seq(7)]
+
+sample_pars <- function(x){
+  runif(1, x[1], x[2])
+}
+sim_subjs = 100
+choicedata.sim = NULL
+allIndPars <- NULL
+i <- 1
+while (i <= sim_subjs){
+  print(i)
+  for (cont in c('c1')){
+  ID <- sample(unique(subjList$subjID), 1)
+  choicedata.sub <- subset(choicedata.common, subjID == ID & context == cont)
+  choicedata.sub$subjID <- i
+  pars <- as.list(apply(ranges, 2, sample_pars))
+  print(pars)
+  choicedata.sub$b.drift.intercept.p <- pars$b.drift.intercept.p 
+  choicedata.sub$b.drift.amount.p <- pars$b.drift.amount.p
+  choicedata.sub$nondectime.p <- pars$nondectime.p
+  choicedata.sub$noise.p <- pars$noise.p
+  choicedata.sub$bias.p <- pars$bias.p
+    
+  data <- list(M=nrow(choicedata.sub), 
+  amount_later_centered=choicedata.sub$amount_later_centered,
+  b.drift.intercept.p=choicedata.sub$b.drift.intercept.p,
+  b.drift.amount.p=choicedata.sub$b.drift.amount.p,
+  bias.p=choicedata.sub$bias.p,
+  noise.p=choicedata.sub$noise.p,
+  nondectime.p=choicedata.sub$nondectime.p)
+  
+  RT.signed <- NA
+  tryCatch({
+  # avoid getting stuck in some parameter configurations
+  RT.signed <- eval_fork({
+    out <- run.jags(modelstr, data=data,
+    monitor=c("RT.signed"), sample=1, n.chains=1, summarise=FALSE,   modules = "wiener"
+  )
+    print(out)
+    res <- as.vector(coda::as.mcmc(out))
+  
+  }, timeout = 1)},
+  
+  error = function(cond) {
+            message("Skipping one parameter")
+            message(conditionMessage(cond))
+        })
+  if (anyNA(RT.signed)) {next}
+  else {
+      allIndPars <- rbind(allIndPars, c(pars, i, cont))
+      i <- i + 1
+      }
+  
+  choicedata.sub$rt <- abs(RT.signed)
+  choicedata.sub$choice <- (RT.signed >0)*1
+  
+  choicedata.sim <- rbind(choicedata.sim, choicedata.sub)
+  }
+}
+
+
+allIndPars <- as.data.frame(apply(allIndPars, 2, unlist)) %>% mutate_all(type.convert, as.is=T)
+colnames(allIndPars) <- allIndPars.names
+choicedata.common <- choicedata.sim
+```
+
+```{r}
+View(choicedata.common)
+```
+
+```{r}
+save(choicedata.common, file=file.path(WDD, OUTPUTFILE))
+```
+
+```{r}
+source("../analysis_funcs.R")
+
+SIMPARSFILE = '../results/linear_drift_no_pooling_ddm-processed_data_censored-simulated-19-04-2024_14:13-10000-50000-jags-pars.RData'
+
+load(SIMPARSFILE)
+
+subjList <-
+  unique(choicedata.common[c('subjID',
+                             'context',
+                             'context_num',
+                             'context_order',
+                             'background_col',
+                             grouping_var)])
+
+allIndPars_sim <- extract_parameters(parVals, sim_subjs, subjList)
+```
+
+# Compare parameters
+
+Plot
+
+```{r}
+library(ggpmisc)
+id.vars <- colnames(allIndPars)[-seq(5)]
+allIndPars.melt <- melt(allIndPars, id.vars =id.vars,  value.name = "value", variable.name="parameter")
+
+allIndPars_sim.melt <- melt(allIndPars_sim[, seq(7)], id.vars =id.vars,  value.name = "value", variable.name="parameter")
+
+allIndPars.merged <- merge(allIndPars.melt, allIndPars_sim.melt, by=c(id.vars, "parameter"), suffixes = c('.tru','.est')) %>% mutate(parameter_label = par_labels[parameter])
+
+
+myplot = ggplot(    
+  data = allIndPars.merged,
+  aes(x = value.tru, y = value.est)
+  ) +
+  geom_point(size=0.7) +
+  geom_abline(slope=1, intercept = 0, linetype='dashed') + 
+  stat_poly_line() +
+  stat_correlation(small.r=T) +
+  ylab('Recovered') +
+  xlab('Generated') + facet_wrap(. ~ parameter_label, scales = 'free', nrow=1)
+print(myplot)
+
+
+
+
+```
+
+Save figure
+
+```{r}
+HEIGHT1ROW = 4.06
+WIDTH1COL = 3.8
+DPI = 1000
+
+FIGS_DIR = '../figs'
+
+
+ggsave(
+  filename = file.path(FIGS_DIR, "ParameterRecovery.png"),
+  plot = myplot,
+  dpi = DPI,
+  width = WIDTH1COL * 3,
+  height = HEIGHT1ROW 
+)
+
+
+```
+
+Stats
+
+```{r}
+main.mat = NULL
+for (par in unique(allIndPars.merged$parameter)){
+  for (con in unique(allIndPars.merged$context)){
+    sub <- subset(allIndPars.merged, parameter == par & context == con)
+    cc <- cor.test(sub$value.est, sub$value.tru)
+    
+    main.mat = rbind(main.mat, c(par, 
+      con,
+      round(cc$estimate, 3), 
+      round(cc$parameter, 3), 
+      round(cc$p.value, 3))
+      )
+  }
+}
+
+colnames(main.mat) <- c("DDM Parameter", "Context", "r", "df", "p-value")
+
+main.mat <- data.frame(main.mat[, -2])
+
+```
