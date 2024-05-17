@@ -535,6 +535,10 @@ reg_labels = c(
   "ChoiceLater option:amount_later_centered.2" = "Choice (later option) x later reward (centered) squared"
 )
 
+choice.labels = unlist(reg_labels[rownames(choice.fixef)])
+rt.labels = unlist(reg_labels[rownames(rt.fixef)])
+rt.cor.labels = unlist(reg_labels[rownames(rt.cor.fixef)])
+
 choice.fixef = apply(choice.fixef, 2, reformat)
 choice.fixef = as.data.frame(choice.fixef)
 colnames(choice.fixef) =  c(
@@ -543,7 +547,7 @@ colnames(choice.fixef) =  c(
  "z",
  "p-value")
 
-choice.fixef = cbind(Parameter = unlist(reg_labels[rownames(choice.fixef)]), choice.fixef)
+choice.fixef = data.frame(Parameter = choice.labels, choice.fixef)
 
 rt.fixef = apply(rt.fixef, 2, reformat)
 rt.cor.fixef = apply(rt.cor.fixef, 2, reformat)
@@ -556,8 +560,8 @@ c(
  "t",
  "df",
  "p-value")
-rt.fixef = cbind(Parameter = unlist(reg_labels[rownames(rt.fixef)]), rt.fixef)
-rt.cor.fixef = cbind(Parameter = unlist(reg_labels[rownames(rt.cor.fixef)]), rt.cor.fixef)
+rt.fixef = data.frame(Parameter = rt.labels, rt.fixef)
+rt.cor.fixef = data.frame(Parameter = rt.cor.labels, rt.cor.fixef)
 
 statslist['_table_choice.fixef_'] = tab_to_str(choice.fixef[c(1,2,4,5)])
 statslist['_table_rt.fixef_'] = tab_to_str(rt.fixef[c(1,2,4,5)])
