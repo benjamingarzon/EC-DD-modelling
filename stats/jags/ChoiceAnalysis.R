@@ -70,7 +70,7 @@ myplot.choiceprob.diff.group = myplot.choiceprob.diff + facet_grid(. ~ Group)
 print(myplot.choiceprob.diff.group)
 
 model = fitmodel(
-  "choice ~ Group*Context*amount_later_centered + (1|subjID)",
+  "choice ~ Group*Context*amount_later_centered + background_col + (1|subjID)",
   choicedata,
   c(
     "_choice_context_" = "ContextLow volatility",
@@ -89,6 +89,8 @@ mm = model.matrix(model)
 z = cc.main * mm[, "GroupLow vol. first:ContextLow volatility"]
 + cc.inter * mm[, "GroupLow vol. first:ContextLow volatility:amount_later_centered"]
 choicedata$choice.pred = choicedata$choice - sigmoid(z)
+
+choice.fixef = coef(summary(model))
 
 choicedata.mean.agg = choicedata %>%
   group_by(subjID,

@@ -45,7 +45,7 @@ sem = function(x)
   sd(x, na.rm = T) / sqrt(length(x))
 
 reformat = function(x) {
-  ifelse(!is.na(as.numeric(x)), round(as.numeric(x), 2), x)
+  ifelse(!is.na(as.numeric(x)), round(as.numeric(x), 3), x)
 }
 
 ########################################################################################################

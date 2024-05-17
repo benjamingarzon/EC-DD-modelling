@@ -182,7 +182,7 @@ myplot = ggplot(data = choicedata, aes(
 choicedata$amount_later_centered.2 = choicedata$amount_later_centered ^ 2
 
 model = fitmodel(
-  "log(rt) ~ Group*Context + (1|subjID)",
+  "log(rt) ~ Group*Context + background_col + (1|subjID)",
   choicedata,
   c("_RT_context_" = "ContextLow volatility",
     "_RT_groupxcontext_" = "GroupLow vol. first:ContextLow volatility")
@@ -191,10 +191,11 @@ model = fitmodel(
 cc = fixef(model)["GroupLow vol. first:ContextLow volatility"]
 mm = model.matrix(model)
 
+rt.fixef = coef(summary(model))
 choicedata$rt.pred = exp(log(choicedata$rt) - cc * mm[, "GroupLow vol. first:ContextLow volatility"])
 
 model = fitmodel(
-  "log(rt) ~ Group*Context + Choice*(amount_later_centered + amount_later_centered.2) + (1|subjID)",
+  "log(rt) ~ Group*Context + Choice*(amount_later_centered + amount_later_centered.2) + background_col + (1|subjID)",
   choicedata,
   c(
     "_RT_contextCORchoicexamount_" = "ContextLow volatility",
@@ -203,6 +204,7 @@ model = fitmodel(
   
 )
 
+rt.cor.fixef = coef(summary(model))
 
 choicedata.median = choicedata %>%
   group_by(subjID,

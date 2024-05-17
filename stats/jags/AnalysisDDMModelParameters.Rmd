@@ -315,7 +315,7 @@ statslist['_table_range_inter_'] = tab_to_str(inter.mat)
 # Mediation of DDM parameters
 
 ```{r}
-source('./Mediations.R')
+#source('./Mediations.R')
 ```
 
 
@@ -382,17 +382,17 @@ FIGS_DIR = '../figs'
 #myplot.trial.RT
 
 fig.a.1 = ggarrange(
-  myplot.trial.RT,
-  ncol = 1,
-  nrow = 1,
-  labels = c('A')
-)
-fig.a.2 = ggarrange(
   myplot.RT.choice.group,
   myplot.RT.choice.agg,
   ncol = 2,
   nrow = 1,
-  labels = c('B', 'C')
+  labels = c('A', 'B')
+)
+fig.a.2 = ggarrange(
+  myplot.trial.RT,
+  ncol = 1,
+  nrow = 1,
+  labels = c('C')
 )
 fig.a.3 = ggarrange(
   myplot.choiceprob.group,
@@ -513,6 +513,55 @@ print(fig.b)
 print(fig.c)
 print(fig.d)
 
+```
+
+
+
+Table for the regressions
+```{r}
+
+reg_labels = c(
+  "(Intercept)" =  "Intercept",                                                    
+  "GroupLow vol. first"= "Group (low volatility first)",                                "ContextLow volatility"= "Group (low volatility first)",                            
+  "amount_later_centered" = "Later reward (centered)", 
+  "background_colpurple" = "Background color (purple)",
+  "background_colteal" = "Background color (teal)", 
+  "GroupLow vol. first:ContextLow volatility" = "Group (low volatility first) x context (low volatility)",                      
+  "GroupLow vol. first:amount_later_centered" = "Group (low volatility first) x later reward (centered)",
+  "ContextLow volatility:amount_later_centered" = "Context (low volatility) x later reward (centered)",
+  "GroupLow vol. first:ContextLow volatility:amount_later_centered" = "Group (low volatility first) x later reward (centered)",
+  "Context (low volatility) x later reward (centered)",
+  "ChoiceLater option:amount_later_centered" = "Choice (later option) x later reward (centered)",
+  "ChoiceLater option:amount_later_centered.2" = "Choice (later option) x later reward (centered) squared"
+)
+
+choice.fixef = apply(choice.fixef, 2, reformat)
+choice.fixef = as.data.frame(choice.fixef)
+colnames(choice.fixef) =  c(
+ "Estimate",
+ "Sd",    
+ "z",
+ "p-value")
+
+choice.fixef = cbind(Parameter = unlist(reg_labels[rownames(choice.fixef)]), choice.fixef)
+
+rt.fixef = apply(rt.fixef, 2, reformat)
+rt.cor.fixef = apply(rt.cor.fixef, 2, reformat)
+rt.fixef = as.data.frame(rt.fixef)
+rt.cor.fixef = as.data.frame(rt.cor.fixef)
+colnames(rt.fixef) = colnames(rt.cor.fixef) =  
+c(
+ "Estimate",
+ "Sd",    
+ "t",
+ "df",
+ "p-value")
+rt.fixef = cbind(Parameter = unlist(reg_labels[rownames(rt.fixef)]), rt.fixef)
+rt.cor.fixef = cbind(Parameter = unlist(reg_labels[rownames(rt.cor.fixef)]), rt.cor.fixef)
+
+statslist['_table_choice.fixef_'] = tab_to_str(choice.fixef[c(1,2,4,5)])
+statslist['_table_rt.fixef_'] = tab_to_str(rt.fixef[c(1,2,4,5)])
+statslist['_table_rt.cor.fixef_'] = tab_to_str(rt.cor.fixef[c(1,2,4,5)])
 ```
 
 
