@@ -360,7 +360,11 @@ fitmodel = function(ff,
     if (is.null(family)) {
       model = lmer(as.formula(ff), data = data.sub)
     } else {
-      model = glmer(as.formula(ff), data = data.sub, family = family)
+      model = glmer(as.formula(ff), data = data.sub, family = family,
+        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb'))
+        #glmerControl(optimizer ="bobyqa")
+        
+        )
     }
     
   }

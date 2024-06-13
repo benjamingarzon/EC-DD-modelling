@@ -2,6 +2,7 @@
 # Perform analyses on response variables and DDM parameters
 
 ```{r}
+# detach("package:plotly", unload=TRUE)
 rm(list = ls())
 source("../analysis_funcs.R")
 
@@ -14,16 +15,24 @@ theme_set(mytheme)
 # Load previous fit
 #MYFILE = '../results/linear_drift_no_pooling_corr_ddm-processed_data_censored-27-12-2023_07:59-10000-50000-jags-pars.RData'
 #MYFILE = '../results/linear_drift_no_pooling_bd_ddm-processed_data_censored-27-12-2023_20:07-10000-50000-jags-pars.RData'
-#MYFILE = '../results/linear_drift_no_pooling_ddm-processed_data_censored_100-22-12-2023_21:49-10000-50000-jags-pars.RData'
-MYFILE = '../results/linear_drift_no_pooling_ddm-processed_data_censored-22-12-2023_23:53-10000-50000-jags-pars.RData'
-
+init100 = T
+if (init100) {
+  MYFILE = '../results/linear_drift_no_pooling_ddm-processed_data_censored_100-22-12-2023_21:49-10000-50000-jags-pars.RData'
 load(MYFILE)
+load(file.path(WDD, "processed_data_censored_100.RData"))
+
+} else {
+  MYFILE = '../results/linear_drift_no_pooling_ddm-processed_data_censored-22-12-2023_23:53-10000-50000-jags-pars.RData'
+load(MYFILE)
+load(file.path(WDD, "processed_data_censored.RData"))
+
+}
+
 numSubjs = dataList$N
 
 # Load data
 #load(file.path(WDD, "processed_data_censored_220.RData"))
-#load(file.path(WDD, "processed_data_censored_100.RData"))
-load(file.path(WDD, "processed_data_censored.RData"))
+
 grouping_var = 'subj_context'
 choicedata.common$subj_context = paste(choicedata.common$subjID, choicedata.common$context)
 dataList = organize_data(choicedata.common, grouping_var, long = T)
@@ -183,7 +192,7 @@ for (mypar in mypars) {
   print(mypar)
   myform = formula(paste(
     mypar,
-    "context + context_order + background_col + (1|subjID)",
+    "context + context_order + (1|subjID)", #  + background_col
     sep = "~"
   ))
   model = lmer(myform, data = allIndPars %>% filter(subjID %in% include_subjects))
@@ -513,6 +522,32 @@ print(fig.b)
 print(fig.c)
 print(fig.d)
 
+if (init100) {
+
+fig.e = ggarrange(
+  myplot.RT.choice.group,
+  myplot.RT.choice.agg,
+  myplot.choiceprob.group,
+  myplot.choiceprob.agg,
+  myplot.choiceprob.diff.group,
+  myplot.choiceprob.diff.agg,
+  ncol = 2,
+  nrow = 3,
+  labels = c('A', 'B', 'C', 'D', 'E', 'F')
+)
+
+
+ggsave(
+  filename = file.path(FIGS_DIR, "Choices_100.png"),
+  plot = fig.e,
+  dpi = DPI,
+  width = WIDTH1COL * 2,
+  height = HEIGHT1ROW * 3
+)
+
+print(fig.e)
+}
+
 ```
 
 
@@ -522,15 +557,17 @@ Table for the regressions
 
 reg_labels = c(
   "(Intercept)" =  "Intercept",                                                    
-  "GroupLow vol. first"= "Group (low volatility first)",                                "ContextLow volatility"= "Group (low volatility first)",                            
+  "GroupLow vol. first"= "Group (low volatility first)",
+  "ContextLow volatility"= "Context (low volatility)",                            
   "amount_later_centered" = "Later reward (centered)", 
+  "amount_later_centered.2" = "Later reward (centered) squared", 
   "background_colpurple" = "Background color (purple)",
   "background_colteal" = "Background color (teal)", 
-  "GroupLow vol. first:ContextLow volatility" = "Group (low volatility first) x context (low volatility)",                      
+  "GroupLow vol. first:ContextLow volatility" = "Group (low volatility first) x context (low volatility)",    "ContextLow volatility" = "Context (low volatility)",
   "GroupLow vol. first:amount_later_centered" = "Group (low volatility first) x later reward (centered)",
   "ContextLow volatility:amount_later_centered" = "Context (low volatility) x later reward (centered)",
   "GroupLow vol. first:ContextLow volatility:amount_later_centered" = "Group (low volatility first) x later reward (centered)",
-  "Context (low volatility) x later reward (centered)",
+  "ChoiceLater option"= "Choice (later option)",
   "ChoiceLater option:amount_later_centered" = "Choice (later option) x later reward (centered)",
   "ChoiceLater option:amount_later_centered.2" = "Choice (later option) x later reward (centered) squared"
 )
@@ -538,9 +575,9 @@ reg_labels = c(
 choice.labels = unlist(reg_labels[rownames(choice.fixef)])
 rt.labels = unlist(reg_labels[rownames(rt.fixef)])
 rt.cor.labels = unlist(reg_labels[rownames(rt.cor.fixef)])
-
 choice.fixef = apply(choice.fixef, 2, reformat)
 choice.fixef = as.data.frame(choice.fixef)
+
 colnames(choice.fixef) =  c(
  "Estimate",
  "Sd",    
@@ -557,22 +594,25 @@ colnames(rt.fixef) = colnames(rt.cor.fixef) =
 c(
  "Estimate",
  "Sd",    
- "t",
  "df",
+ "t",
  "p-value")
 rt.fixef = data.frame(Parameter = rt.labels, rt.fixef)
 rt.cor.fixef = data.frame(Parameter = rt.cor.labels, rt.cor.fixef)
 
-statslist['_table_choice.fixef_'] = tab_to_str(choice.fixef[c(1,2,4,5)])
-statslist['_table_rt.fixef_'] = tab_to_str(rt.fixef[c(1,2,4,5)])
-statslist['_table_rt.cor.fixef_'] = tab_to_str(rt.cor.fixef[c(1,2,4,5)])
+statslist['_table_choice.fixef_'] = tab_to_str(choice.fixef[, c(1,2,4,5)])
+statslist['_table_rt.fixef_'] = tab_to_str(rt.fixef[, c(1,2,5,4,6)])
+statslist['_table_rt.cor.fixef_'] = tab_to_str(rt.cor.fixef[, c(1,2,5,4,6)])
 ```
 
 
 
 ```{r}
 filein = '../results/results_text_noise.txt'
-fileout = '../results/results_text_fixed_noise.txt'
+fileout = ifelse(!init100, 
+  '../results/results_text_fixed_noise.txt',
+  '../results/results_text_fixed_noise_100.txt')
+
 text = readLines(filein)
 print(statslist)
 text.new = NULL

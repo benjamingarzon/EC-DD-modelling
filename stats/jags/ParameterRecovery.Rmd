@@ -204,7 +204,7 @@ allIndPars.names <- colnames(allIndPars)[seq(7)]
 sample_pars <- function(x){
   runif(1, x[1], x[2])
 }
-sim_subjs = 100
+sim_subjs = 10
 choicedata.sim = NULL
 allIndPars <- NULL
 i <- 1
@@ -262,6 +262,7 @@ while (i <= sim_subjs){
 
 allIndPars <- as.data.frame(apply(allIndPars, 2, unlist)) %>% mutate_all(type.convert, as.is=T)
 colnames(allIndPars) <- allIndPars.names
+choicedata.common_orig <- choicedata.common
 choicedata.common <- choicedata.sim
 ```
 
@@ -364,5 +365,128 @@ for (par in unique(allIndPars.merged$parameter)){
 colnames(main.mat) <- c("DDM Parameter", "Context", "r", "df", "p-value")
 
 main.mat <- data.frame(main.mat[, -2])
+
+```
+
+# Simulate group differences
+
+```{r}
+library(runjags)
+```
+
+```{r message=F, echo=F, results'hide'}
+
+choicedata.common <- choicedata.common_orig
+
+allIndPars.names <- colnames(allIndPars)[seq(7)]
+
+sample_pars_norm <- function(pars){
+  return(list(
+  b.drift.intercept.p = rnorm(1, pars$b.drift.intercept.mean, pars$b.drift.intercept.sd),
+  b.drift.amount.p = rnorm(1, pars$b.drift.amount.mean, pars$b.drift.amount.sd),
+  bias.p = rnorm(1, pars$bias.mean, pars$bias.sd),
+  nondectime.p = rnorm(1, pars$nondectime.mean, pars$nondectime.sd),
+  noise.p = rnorm(1, pars$noise.mean, pars$noise.sd)
+  ))
+}
+
+parlist = list()
+parlist[['High volatility']] <- list(
+                b.drift.intercept.mean = -0.04,
+                b.drift.amount.mean = 0.4,
+                bias.mean = 0.5,
+                nondectime.mean = 0.65,
+                noise.mean = 0.46,
+  
+                b.drift.intercept.sd = 0.4,
+                b.drift.amount.sd = 0.4,
+                bias.sd = 0.1,
+                nondectime.sd = 0.1,
+                noise.sd = 0.1)
+
+parlist[['Low volatility']] <- list(
+                b.drift.intercept.mean = -0.04,
+                b.drift.amount.mean = 0.48,
+                bias.mean = 0.5,
+                nondectime.mean = 0.61,
+                noise.mean = 0.52,
+                b.drift.intercept.sd = 0.4,
+                b.drift.amount.sd = 0.4,
+                bias.sd = 0.1,
+                nondectime.sd = 0.1,
+                noise.sd = 0.1)
+
+
+sim_subjs = 100
+choicedata.sim = NULL
+allIndPars <- NULL
+i <- 1
+while (i <= sim_subjs){
+  print(i)
+  for (cont in c('High volatility', 'Low volatility')){
+  ID <- sample(unique(choicedata.common$subjID), 1)
+  choicedata.sub <- subset(choicedata.common, subjID == ID & context == 'c1')
+  choicedata.sub$subjID <- i
+  choicedata.sub$Context = cont
+  pars <- sample_pars_norm(parlist[[cont]])
+  print(pars)
+  choicedata.sub$b.drift.intercept.p <- pars$b.drift.intercept.p 
+  choicedata.sub$b.drift.amount.p <- pars$b.drift.amount.p
+  choicedata.sub$nondectime.p <- pars$nondectime.p
+  choicedata.sub$noise.p <- pars$noise.p
+  choicedata.sub$bias.p <- pars$bias.p
+    
+  data <- list(M=nrow(choicedata.sub), 
+  amount_later_centered=choicedata.sub$amount_later_centered,
+  b.drift.intercept.p=choicedata.sub$b.drift.intercept.p,
+  b.drift.amount.p=choicedata.sub$b.drift.amount.p,
+  bias.p=choicedata.sub$bias.p,
+  noise.p=choicedata.sub$noise.p,
+  nondectime.p=choicedata.sub$nondectime.p)
+  
+  RT.signed <- NA
+  tryCatch({
+  # avoid getting stuck in some parameter configurations
+  RT.signed <- eval_fork({
+    out <- run.jags(modelstr, data=data,
+    monitor=c("RT.signed"), sample=1, n.chains=1, summarise=FALSE,   modules = "wiener"
+  )
+    print(out)
+    res <- as.vector(coda::as.mcmc(out))
+  
+  }, timeout = 1)},
+  
+  error = function(cond) {
+            message("Skipping one parameter")
+            message(conditionMessage(cond))
+        })
+  if (anyNA(RT.signed)) {next}
+  else {
+      allIndPars <- rbind(allIndPars, c(pars, i, cont))
+      i <- i + 1
+      }
+  
+  choicedata.sub$rt <- abs(RT.signed)
+  choicedata.sub$choice <- (RT.signed >0)*1
+  
+  choicedata.sim <- rbind(choicedata.sim, choicedata.sub)
+  }
+}
+
+
+allIndPars <- as.data.frame(apply(allIndPars, 2, unlist)) %>% mutate_all(type.convert, as.is=T)
+colnames(allIndPars) <- allIndPars.names
+choicedata.common <- choicedata.sim
+```
+
+Test results
+
+```{r}
+
+
+model <- glmer("choice ~ Context*amount_later_centered + (1|subjID)", data = choicedata.sim, family = 'binomial', control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb')))
+
+print(summary(model))
+
 
 ```

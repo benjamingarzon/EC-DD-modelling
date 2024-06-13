@@ -70,7 +70,7 @@ myplot.choiceprob.diff.group = myplot.choiceprob.diff + facet_grid(. ~ Group)
 print(myplot.choiceprob.diff.group)
 
 model = fitmodel(
-  "choice ~ Group*Context*amount_later_centered + background_col + (1|subjID)",
+  "choice ~ Group*Context*amount_later_centered + (1|subjID)", # background_col
   choicedata,
   c(
     "_choice_context_" = "ContextLow volatility",
@@ -81,18 +81,45 @@ model = fitmodel(
   ),
   family = 'binomial'
 )
+
+# model = fitmodel(
+#   "choice ~ Group + Context + amount_later_centered + Group:Context + Context:amount_later_centered  + background_col + (1|subjID)",
+#   choicedata,
+#   c(
+#     "_choice_context_" = "ContextLow volatility",
+#     "_choice_groupxcontext_" = "GroupLow vol. first:ContextLow volatility",
+#     "_choice_contextxamount_" = "ContextLow volatility:amount_later_centered"
+#   ),
+#   family = 'binomial'
+# )
+
 print(summary(model))
+#cc.main = fixef(model)["GroupLow vol. first:ContextLow volatility"]
+#cc.inter = fixef(model)["GroupLow vol. first:ContextLow volatility:amount_later_centered"]
+#cc.inter2 = fixef(model)["GroupLow vol. first:amount_later_centered"]
 
-cc.main = fixef(model)["GroupLow vol. first:ContextLow volatility"]
-cc.inter = fixef(model)["GroupLow vol. first:ContextLow volatility:amount_later_centered"]
 mm = model.matrix(model)
-z = cc.main * mm[, "GroupLow vol. first:ContextLow volatility"]
-+ cc.inter * mm[, "GroupLow vol. first:ContextLow volatility:amount_later_centered"]
-choicedata$choice.pred = choicedata$choice - sigmoid(z)
+#z = cc.main * mm[, "GroupLow vol. first:ContextLow volatility"] + 
+#  cc.inter * mm[, "GroupLow vol. first:ContextLow volatility:amount_later_centered"] + 
+#  cc.inter2 * mm[, "GroupLow vol. first:amount_later_centered"] 
 
+inds <- c(1, 2, 3, 4, 6, 7)
+
+ffx <- fixef(model)
+rfx <- ranef(model)$subjID
+fefs <- names(ffx)[inds]
+print(fefs)
+eta <- mm[, fefs] %*% ffx[fefs] + rfx[choicedata$subjID, 1] + residuals(model)
+choice.pred <- 1*(plogis(eta)>0.5) 
+
+library(caret)
+confusionMatrix(as.factor(choice.pred), as.factor(choicedata$choice))
+choicedata$choice.pred <- choice.pred #.pred #choice.pred
+cor.test(choice.pred, choicedata$choice)
+boxplot(choice.pred~ choicedata$choice)
 choice.fixef = coef(summary(model))
 
-choicedata.mean.agg = choicedata %>%
+choicedata.mean.agg <- choicedata %>%
   group_by(subjID,
            Context,
            context,
