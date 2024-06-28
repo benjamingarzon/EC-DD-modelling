@@ -15,7 +15,7 @@ theme_set(mytheme)
 # Load previous fit
 #MYFILE = '../results/linear_drift_no_pooling_corr_ddm-processed_data_censored-27-12-2023_07:59-10000-50000-jags-pars.RData'
 #MYFILE = '../results/linear_drift_no_pooling_bd_ddm-processed_data_censored-27-12-2023_20:07-10000-50000-jags-pars.RData'
-init100 = T
+init100 = F
 if (init100) {
   MYFILE = '../results/linear_drift_no_pooling_ddm-processed_data_censored_100-22-12-2023_21:49-10000-50000-jags-pars.RData'
 load(MYFILE)

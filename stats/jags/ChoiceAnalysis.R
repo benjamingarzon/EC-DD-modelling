@@ -94,27 +94,23 @@ model = fitmodel(
 # )
 
 print(summary(model))
-#cc.main = fixef(model)["GroupLow vol. first:ContextLow volatility"]
-#cc.inter = fixef(model)["GroupLow vol. first:ContextLow volatility:amount_later_centered"]
-#cc.inter2 = fixef(model)["GroupLow vol. first:amount_later_centered"]
 
 mm = model.matrix(model)
-#z = cc.main * mm[, "GroupLow vol. first:ContextLow volatility"] + 
-#  cc.inter * mm[, "GroupLow vol. first:ContextLow volatility:amount_later_centered"] + 
-#  cc.inter2 * mm[, "GroupLow vol. first:amount_later_centered"] 
 
 inds <- c(1, 2, 3, 4, 6, 7)
+#inds <- c(1, 3, 4, 7)
 
 ffx <- fixef(model)
 rfx <- ranef(model)$subjID
 fefs <- names(ffx)[inds]
 print(fefs)
-eta <- mm[, fefs] %*% ffx[fefs] + rfx[choicedata$subjID, 1] + residuals(model)
-choice.pred <- 1*(plogis(eta)>0.5) 
+eta <- mm[, fefs] %*% ffx[fefs] + rfx[choicedata$subjID, 1]
+
+choice.pred <- (plogis(eta) + residuals(model, type='response'))
 
 library(caret)
-confusionMatrix(as.factor(choice.pred), as.factor(choicedata$choice))
-choicedata$choice.pred <- choice.pred #.pred #choice.pred
+confusionMatrix(as.factor((choice.pred>0.5)*1), as.factor(choicedata$choice))
+choicedata$choice.pred <- choice.pred 
 cor.test(choice.pred, choicedata$choice)
 boxplot(choice.pred~ choicedata$choice)
 choice.fixef = coef(summary(model))

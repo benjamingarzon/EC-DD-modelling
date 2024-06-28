@@ -204,7 +204,7 @@ allIndPars.names <- colnames(allIndPars)[seq(7)]
 sample_pars <- function(x){
   runif(1, x[1], x[2])
 }
-sim_subjs = 10
+sim_subjs = 100
 choicedata.sim = NULL
 allIndPars <- NULL
 i <- 1
@@ -235,7 +235,7 @@ while (i <= sim_subjs){
   # avoid getting stuck in some parameter configurations
   RT.signed <- eval_fork({
     out <- run.jags(modelstr, data=data,
-    monitor=c("RT.signed"), sample=1, n.chains=1, summarise=FALSE,   modules = "wiener"
+    monitor=c("RT.signed"), sample=1, n.chains=1, summarise=FALSE, modules = "wiener"
   )
     print(out)
     res <- as.vector(coda::as.mcmc(out))
@@ -277,7 +277,7 @@ save(choicedata.common, file=file.path(WDD, OUTPUTFILE))
 ```{r}
 source("../analysis_funcs.R")
 
-SIMPARSFILE = '../results/linear_drift_no_pooling_ddm-processed_data_censored-simulated-19-04-2024_14:13-10000-50000-jags-pars.RData'
+SIMPARSFILE = '../results/linear_drift_no_pooling_ddm-processed_data_censored-simulated-14-06-2024_16:58-10000-50000-jags-pars.RData'
 
 load(SIMPARSFILE)
 
@@ -315,7 +315,8 @@ myplot = ggplot(
   stat_poly_line() +
   stat_correlation(small.r=T) +
   ylab('Recovered') +
-  xlab('Generated') + facet_wrap(. ~ parameter_label, scales = 'free', nrow=1)
+  xlab('Generated') + facet_wrap(. ~ parameter_label, scales = 'free', nrow=1) + 
+  theme(text = element_text(size=16))
 print(myplot)
 
 
