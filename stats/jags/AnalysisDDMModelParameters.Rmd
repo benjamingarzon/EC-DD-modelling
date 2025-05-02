@@ -150,6 +150,8 @@ allIndPars.subj = allIndPars %>% group_by(subjID) %>% summarise(keep = max(lower
 include_subjects = allIndPars.subj$subjID
 
 allIndPars.sub = subset(allIndPars, subjID %in% include_subjects)
+
+write.table(include_subjects, file = file.path(WDD, 'final_subjects_included.txt'), row.names = F, col.names=F, quote = F)
 ```
 
 # Remove outliers
