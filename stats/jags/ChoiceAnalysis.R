@@ -29,8 +29,10 @@ choicedata.mean = choicedata %>%
            context_order,
            Group,
            ev.cut) %>%
-  dplyr::summarise(ev = mean(ev),
-                   prob_late = mean(choice))
+  dplyr::summarise(
+    ev = limit_mean(ev.cut),  # average of min and max ev within each ev.cut
+    prob_late = mean(choice)
+  )
 
 choicedata.mean.high = subset(choicedata.mean, Context == 'High volatility')
 choicedata.mean.low = subset(choicedata.mean, Context == 'Low volatility')
@@ -41,7 +43,7 @@ choicedata.diff = merge(
   suffixes = c('.high', '.low')
 )
 
-choicedata.diff$prob_late.diff = choicedata.diff$prob_late.high - choicedata.diff$prob_late.low
+choicedata.diff$prob_late.diff = as.numeric(choicedata.diff$prob_late.high) - as.numeric(choicedata.diff$prob_late.low)
 
 choicedata.diff.group = choicedata.diff %>%
   group_by(ev.cut, Group) %>%
@@ -69,8 +71,23 @@ myplot.choiceprob.diff = ggplot(
 myplot.choiceprob.diff.group = myplot.choiceprob.diff + facet_grid(. ~ Group)
 print(myplot.choiceprob.diff.group)
 
+# without order correction
+
 model = fitmodel(
-  "choice ~ Group*Context*amount_later_centered + (1|subjID)", # background_col
+  "choice ~ Context*amount_later_centered + (1 + Context*amount_later_centered|subjID)", # background_col
+  choicedata,
+  c(
+    "_choice_contextNOgroup_" = "ContextLow volatility",
+    "_choice_contextxamountNOgroup_" = "ContextLow volatility:amount_later_centered"
+  ),
+  family = 'binomial'
+)
+
+# with order correction
+
+model = fitmodel(
+  "choice ~ Group*Context*amount_later_centered + (1 + Group*Context*amount_later_centered|subjID)",
+#  "choice ~ Group*Context*amount_later_centered + (1|subjID)", 
   choicedata,
   c(
     "_choice_context_" = "ContextLow volatility",
@@ -95,32 +112,51 @@ model = fitmodel(
 
 print(summary(model))
 
-mm = model.matrix(model)
-
+mm <- model.matrix(as.formula("choice ~ Group*Context*amount_later_centered"), data = choicedata)
+colnames(mm) <- gsub(" ", "", colnames(mm))
 inds <- c(1, 2, 3, 4, 6, 7)
+colnames(mm)[1] <- "Intercept"
 #inds <- c(1, 3, 4, 7)
 
-ffx <- fixef(model)
-rfx <- ranef(model)$subjID
-fefs <- names(ffx)[inds]
-print(fefs)
-eta <- mm[, fefs] %*% ffx[fefs] + rfx[choicedata$subjID, 1]
+#ffx <- fixef(model)
+#fefs <- names(ffx)[inds]
+#rfx <- ranef(model)$subjID[,"Estimate"]
+#eta <- mm[, fefs] %*% ffx[fefs] + rfx[choicedata$subjID, 1]
 
-choice.pred <- (plogis(eta) + residuals(model, type='response'))
+ffx <- fixef(model)[,"Estimate"]
+fefs <- names(ffx)#[inds]
+ffx_zeroed <- ffx
+fefs_zeroed <- fefs
+ffx_zeroed[fefs_zeroed[5]] <- 0  # zero the effect of the 5th predictor
+
+#rfx <- ranef(model)$subjID[,"Estimate", ]
+#print(fefs)
+#eta <- mm[, fefs] %*% ffx[fefs] + rfx[choicedata$subjID]
+
+rfx <- ranef(model)$subjID[, , "Intercept"][, "Estimate"]
+subj_index <- match(choicedata$subjID, names(rfx))
+rfx_vec <- rfx[subj_index]
+
+eta <- mm[, fefs_zeroed] %*% ffx_zeroed[fefs_zeroed] + rfx_vec
+choice.pred <- plogis(eta)
+
+#choice.pred <- (plogis(eta) + residuals(model, type='response'))
+
 
 library(caret)
 confusionMatrix(as.factor((choice.pred>0.5)*1), as.factor(choicedata$choice))
 choicedata$choice.pred <- choice.pred 
 cor.test(choice.pred, choicedata$choice)
-boxplot(choice.pred~ choicedata$choice)
-choice.fixef = coef(summary(model))
+boxplot(choice.pred ~ choicedata$choice)
+#choice.fixef = coef(summary(model))
+choice.fixef = fixef(model) 
 
 choicedata.mean.agg <- choicedata %>%
   group_by(subjID,
            Context,
            context,
            ev.cut) %>%
-  dplyr::summarise(ev = mean(ev),
+  dplyr::summarise(ev = limit_mean(ev.cut),  # average of min and max ev within each ev.cut
                    prob_late = mean(choice.pred))
 
 choicedata.group.agg = choicedata.mean.agg %>%
@@ -128,7 +164,7 @@ choicedata.group.agg = choicedata.mean.agg %>%
   dplyr::summarise(
     prob_late.mean = mean(prob_late),
     prob_late.sem = sem(prob_late),
-    ev = mean(ev)
+    ev = limit_mean(ev.cut)
   )
 
 myplot.choiceprob.agg = ggplot(
@@ -153,7 +189,7 @@ choicedata.mean.agg = choicedata %>%
            Context,
            context,
            ev.cut) %>%
-  dplyr::summarise(ev = mean(ev),
+  dplyr::summarise(ev = limit_mean(ev.cut),
                    prob_late = mean(choice.pred))
 
 choicedata.mean.high = subset(choicedata.mean.agg, Context == 'High volatility')
@@ -173,8 +209,9 @@ choicedata.diff.group = choicedata.diff %>%
   dplyr::summarise(
     prob_late.mean = mean(prob_late.diff),
     prob_late.sem = sem(prob_late.diff),
-    ev = mean(ev)
+    ev = limit_mean(ev.cut) # average of min and max ev within each ev.cut
   )
+
 
 myplot.choiceprob.diff.agg = ggplot(
   data = choicedata.diff.group,

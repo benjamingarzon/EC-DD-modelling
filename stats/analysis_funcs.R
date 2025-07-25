@@ -10,8 +10,11 @@ library(dplyr)
 library(GGally)
 library(ggh4x)
 library(pracma)
+library(brms)
 conversion_rate = 6 / 8 # USD to GBP
 base_rate = 6
+BRMS_ITER = 600 #0
+BRMS_WARMUP = 300 #0
 
 par_labels =  c("b.drift.intercept.p" = "Drift intercept",
                 "b.drift.amount.p" = "Drift\nsensitivity",
@@ -268,6 +271,8 @@ check_jags_model = function(myfit, myfit_rjags, myfit_samples) {
            ref_ovl = TRUE)
   
   print(sort(rhat, decreasing = T)[1:20])
+  print(sort(n.eff, decreasing = F)[1:20])
+  
 }  
 
 
@@ -306,7 +311,313 @@ get_par_jags = function(par, var, var2=NULL, ylimit=NULL){
 }
 
 
+########################################################################################################
+# get statistics
+########################################################################################################
+
 get_stats = function(model, param, family) {
+  print("------------")
+  print(param)
+  if (inherits(model, "brmsfit")) {
+    param_clean = gsub(" ", "", param)
+    summ <- as.data.frame(posterior_summary(model))
+    row_idx <- which(rownames(summ) == paste0("b_", param_clean))
+    if (length(row_idx) == 0) stop(paste("Parameter", param, "not found in model summary"))
+    vals <- as.numeric(summ[row_idx, ])
+    # vals: mean, est.error, l-95%, u-95%, Rhat, Bulk_ESS, Tail_ESS
+    out = sprintf(
+      "b = %s, 95%% CI = [%s, %s]",
+      round(vals[1], digits = 3),
+      round(vals[3], digits = 3),
+      round(vals[4], digits = 3)
+    )
+    # p-value is not directly available for brmsfit, so not reported
+  } else {
+    vals = summary(model)$coefficients[param,]
+    if (is.null(family)) {
+      pval = vals[5]
+      out = sprintf(
+        "b = %s, t = %s, df = %s,",
+        round(vals[1], digits = 3),
+        round(vals[4],  digits = 3),
+        round(vals[3], digits = 1)
+      )
+    } else {
+      pval = vals[4]
+      out = sprintf(
+        "b = %s, z = %s,",
+        round(vals[1], digits = 3),
+        round(vals[3],  digits = 3)
+      )
+    }
+    if (pval < 1e-10) {
+      pstr = "p < 1e-10"
+    }
+    else if (pval  < 1e-3) {
+      pstr = paste("p =", formatC(pval ,  digits = 1, format = "e"))
+    }
+    else {
+      pstr = paste("p =", round(pval,  digits = 3))
+    }
+    out = paste(out, pstr)
+  }
+  print(names(param))
+  statslist[names(param)] <<- out
+  print(out)
+}
+
+
+########################################################################################################
+# model fitting
+########################################################################################################
+
+fitmodel = function(ff,
+          data.sub,
+          params = NULL,
+          family = NULL,
+          uselmer = FALSE,
+          cores = 4,
+          chains = 4,
+          iter = BRMS_ITER,
+          warmup = BRMS_WARMUP,
+          set_priors = T, 
+          thin = 1,
+          seed = 13)
+{
+  print("============")
+  print(ff)
+  
+  if (uselmer){
+      model = glmer(as.formula(ff), data = data.sub, family = family,
+        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb')))    
+  } else{
+  
+  family_ <- family
+  if (is.null(family)) {
+      family_ <- gaussian()
+  } else if (family == "binomial") {
+      family_ <- bernoulli(link = "logit")
+  }
+#browser()
+  ff_formula <- as.formula(ff)
+
+  if (set_priors){
+  # Extract predictor variable names from formula
+  # Remove random effects from formula before extracting terms
+  ff_formula_str <- as.character(ff)
+  # Remove everything after the last "+ (" (including "+ (")
+  # Remove random effects terms like (1|group) from formula string
+  ff_formula_str_clean <- gsub("\\([^\\)]*\\|[^\\)]*\\)", "", ff_formula_str)
+  # Remove trailing "+" if present
+  ff_formula_str_clean <- gsub("\\s+$", "", ff_formula_str_clean) # remove trailing spaces
+  ff_formula_str_clean <- gsub("\\+$", "", ff_formula_str_clean)  # remove trailing plus
+  ff_formula_norand <- as.formula(ff_formula_str_clean)
+
+  terms_obj <- terms(ff_formula_norand, data = data.sub)
+  pred_vars <- attr(terms_obj, "term.labels")
+  # Remove interaction terms and keep only main effects
+  pred_vars_main <- unique(unlist(strsplit(pred_vars, "[:*]")))
+  # Standardize predictors (excluding intercept and factors)
+  data.sub.std <- data.sub
+  std_info <- list()
+  # Standardize dependent variable
+  dep_var <- as.character(ff_formula[[2]])
+
+  print(dep_var)
+  print(pred_vars_main)
+
+  # Check if dependent variable exists in data
+  if (!dep_var %in% names(data.sub)) {
+    stop(paste("Dependent variable", dep_var, "not found in data"))
+  }
+
+  if (is.null(family) || family != "binomial") {
+    # Check if the column contains valid numeric data
+    if (!is.numeric(data.sub[[dep_var]]) || all(is.na(data.sub[[dep_var]]))) {
+      stop(paste("Dependent variable", dep_var, "is not numeric or contains only NA values"))
+    }
+    
+    mu_y <- mean(data.sub[[dep_var]], na.rm = TRUE)
+    sd_y <- sd(data.sub[[dep_var]], na.rm = TRUE)
+    
+    # Check for constant variables (sd = 0)
+    if (sd_y == 0 || is.na(sd_y)) {
+      warning(paste("Dependent variable", dep_var, "has zero variance or is constant"))
+      data.sub.std[[dep_var]] <- data.sub[[dep_var]]
+      std_info[[dep_var]] <- list(mean = mu_y, sd = 1)
+    } else {
+      data.sub.std[[dep_var]] <- (data.sub[[dep_var]] - mu_y) / sd_y
+      std_info[[dep_var]] <- list(mean = mu_y, sd = sd_y)
+    }
+  }
+  # Standardize predictors
+  for (v in pred_vars_main) {
+    if (is.numeric(data.sub[[v]])) {
+      message(sprintf("Standardizing variable: %s", v))
+      mu <- mean(data.sub[[v]], na.rm = TRUE)
+      sigma <- sd(data.sub[[v]], na.rm = TRUE)
+      data.sub.std[[v]] <- (data.sub[[v]] - mu) / sigma
+      std_info[[v]] <- list(mean = mu, sd = sigma)
+    }
+  }
+  priors <- c(
+    set_prior("normal(0, 5)", class = "b"),
+    set_prior("cauchy(0, 10)", class = "sd"),
+    set_prior("normal(0, 5)", class = "Intercept")
+  )
+  #if (family == "binomial") {
+  #  priors <- c(priors, set_prior("beta(1, 1)", class = "Intercept"))
+  #} else {
+  #  priors <- c(priors, set_prior("normal(0, 5)", class = "Intercept"))
+  #}
+
+  model <- brm(
+    formula = ff_formula,
+    data = data.sub.std,
+    family = family_,
+    prior = priors,
+    cores = cores,
+    chains = chains,
+    iter = iter,
+    warmup = warmup,
+    thin = thin,
+    seed = seed,
+    sample_prior = "yes"
+  )
+  # Unstandardize fixed effects estimates
+  fixef_raw <- fixef(model)
+  fixef_unstd <- fixef_raw
+  for (v in pred_vars_main) {
+    if (!is.null(std_info[[v]])) {
+      fixef_unstd[v, "Estimate"] <- fixef_raw[v, "Estimate"] * std_info[[dep_var]]$sd / std_info[[v]]$sd
+      fixef_unstd[v, "Q2.5"] <- fixef_raw[v, "Q2.5"] * std_info[[dep_var]]$sd / std_info[[v]]$sd
+      fixef_unstd[v, "Q97.5"] <- fixef_raw[v, "Q97.5"] * std_info[[dep_var]]$sd / std_info[[v]]$sd
+    }
+  }
+  # Unstandardize intercept
+  fixef_unstd["Intercept", "Estimate"] <- fixef_raw["Intercept", "Estimate"] * std_info[[dep_var]]$sd + std_info[[dep_var]]$mean
+  fixef_unstd["Intercept", "Q2.5"] <- fixef_raw["Intercept", "Q2.5"] * std_info[[dep_var]]$sd + std_info[[dep_var]]$mean
+  fixef_unstd["Intercept", "Q97.5"] <- fixef_raw["Intercept", "Q97.5"] * std_info[[dep_var]]$sd + std_info[[dep_var]]$mean
+
+  model$fixef_unstd <- fixef_unstd
+
+  # Visualize prior vs posterior for fixed effects
+  prior_post_plot <- plot(model, ask = FALSE, plot = TRUE, combo = c("dens_overlay", "hist", "trace"), prior = TRUE)
+  print(prior_post_plot)
+
+
+  } else  {
+      # Example: fit a brms model with default priors (no standardization)
+      model <- brm(
+        formula = ff_formula,
+        data = data.sub,
+        family = family_,
+        cores = cores,
+        chains = chains,
+        iter = iter,
+        warmup = warmup,
+        thin = thin,
+        seed = seed,
+        sample_prior = "yes"
+      )
+      # Visualize prior vs posterior for fixed effects
+      prior_post_plot <- plot(model, ask = FALSE, plot = TRUE, combo = c("dens_overlay", "hist", "trace"), prior = TRUE)
+      print(prior_post_plot)
+  }
+
+  }
+
+
+
+  if (!is.null(params)) {
+    for (i in seq_along(params)) {
+      get_stats(model, params[i], family)
+    }
+  }
+  return(model)
+}
+
+########################################################################################################
+# add column with CIs
+########################################################################################################
+
+add_ci_column <- function(df, lower = "Q2.5", upper = "Q97.5", colname = "95% CI") {
+  df[[colname]] <- apply(df[, c(lower, upper)], 1, function(x) {
+    ci_str <- sprintf("[%.3f, %.3f]", as.numeric(x[1]), as.numeric(x[2]))
+    # Significant if interval does not include zero
+    if (as.numeric(x[1]) > 0 | as.numeric(x[2]) < 0) {
+      ci_str <- paste0(ci_str, "*")
+    }
+    ci_str
+  })
+  df <- df %>% select(-all_of(c(lower, upper)))
+  return(df)
+}
+
+
+tab_to_str = function(mytable){
+  if (is.data.frame(mytable)) {
+
+    # Unlist any columns that are lists
+    for (col in names(mytable)) {
+      if (is.list(mytable[[col]])) {
+        mytable[[col]] <- unlist(mytable[[col]])
+      }
+    }
+    write.table(mytable, "../results/tmp.csv", sep = ";", row.names = FALSE)
+  } else {
+    write.table(data.frame(t(unlist(mytable))), "../results/tmp.csv", sep = ";", row.names = FALSE)
+  }
+  return(gsub("\"","", paste(readLines('../results/tmp.csv'), collapse = '\n')))
+} 
+
+
+
+limit_mean <- function(ev.cut){
+  ev = mean(as.numeric(strsplit(substr(as.character(ev.cut), 2, nchar(as.character(ev.cut)) - 1), ",")[[1]]))
+}
+
+
+############################################################################
+############################################################################
+############################################################################
+#                          DEPRECATED FUNCTIONS
+############################################################################
+############################################################################
+
+# not used
+fitmodel_deprecated = function(ff,
+                    data.sub,
+                    params,
+                    family = NULL,
+                    uselm = F)
+{
+  print("============")
+  
+  print(ff)
+  
+  if (uselm) {
+    model = lm(as.formula(ff), data = data.sub)
+  } else {
+    if (is.null(family)) {
+      model = lmer(as.formula(ff), data = data.sub)
+    } else {
+      model = glmer(as.formula(ff), data = data.sub, family = family,
+        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb'))
+        #glmerControl(optimizer ="bobyqa")
+        
+        )
+    }
+    
+  }
+  #print(summary(model))
+  for (i in seq(length(params))){
+    get_stats(model, params[i], family)
+    }
+  return(model)
+}
+get_stats_deprecated = function(model, param, family) {
+#  browser()
   print("------------")
   print(param)
   vals = summary(model)$coefficients[param,]
@@ -344,40 +655,52 @@ get_stats = function(model, param, family) {
   print(out)
 }
 
-fitmodel = function(ff,
-                    data.sub,
-                    params,
-                    family = NULL,
-                    uselm = F)
+fitmodel_default_priors = function(ff,
+          data.sub,
+          params = NULL,
+          family = NULL,
+          uselmer = FALSE,
+          cores = 4,
+          chains = 4,
+          iter = BRMS_ITER,
+          warmup = BRMS_WARMUP,
+          thin = 1,
+          seed = 13)
 {
   print("============")
-  
   print(ff)
   
-  if (uselm) {
-    model = lm(as.formula(ff), data = data.sub)
-  } else {
-    if (is.null(family)) {
-      model = lmer(as.formula(ff), data = data.sub)
-    } else {
+  if (uselmer){
       model = glmer(as.formula(ff), data = data.sub, family = family,
-        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb'))
-        #glmerControl(optimizer ="bobyqa")
-        
-        )
-    }
-    
+        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb')))    
+  } else{
+  
+  family_ <- family
+  if (is.null(family)) {
+      family_ <- gaussian()
+  } else if (family == "binomial") {
+      family_ <- bernoulli(link = "logit")
   }
-  #print(summary(model))
-  for (i in seq(length(params))){
-    get_stats(model, params[i], family)
+
+  model = brm(
+    formula = as.formula(ff),
+    data = data.sub,
+    family = family_,
+    cores = cores,
+    chains = chains,
+    iter = iter,
+    warmup = warmup,
+    thin = thin,
+    seed = seed,
+    sample_prior = "yes"
+  )
+  }
+
+  if (!is.null(params)) {
+    for (i in seq_along(params)) {
+      get_stats(model, params[i], family)
     }
+  }
   return(model)
 }
-
-tab_to_str = function(mytable){
-  write.table(mytable, '../results/tmp.csv', sep = ';', row.names = F)
-  return(gsub("\"","",
-  paste(readLines('../results/tmp.csv'), collapse = '\n')))
-} 
 

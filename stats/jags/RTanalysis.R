@@ -18,10 +18,10 @@ choicedata = choicedata %>% mutate(ev = amount_later, context_num = as.numeric(s
 
 myplot.RT = ggplot(data = choicedata, aes(
   x = jitter(ev),
-  y = log(rt),
+  y = log_rt,
   color = Context,
   group = subjID
-)) + geom_line(size = 0.2) +
+)) + geom_line(linewidth = 0.2) +
   geom_point(size = 0.2) +
   xlab('Later amount ($)') +
   ylab('Response time (s)') + facet_grid(Group ~ Choice)
@@ -47,7 +47,7 @@ myplot.RT = ggplot(data = choicedata.median, aes(
   y = log(rt.median),
   color = Context,
   group = subjID
-)) + geom_line(size = 0.2) +
+)) + geom_line(linewidth = 0.2) +
   geom_point(size = 0.2) +
   xlab('Later amount ($)') +
   ylab('Response time (s)') + facet_grid(Group ~ Context_order)
@@ -148,7 +148,7 @@ print(myplot.RT.choice.group)
 
 # myplot.RT.choice = ggplot(data = choicedata, aes(
 #   x = cut(ev, breaks),
-#   y = log(rt),
+#   y = log_rt,
 #   fill = Context
 # )) +
 #   geom_violin() +
@@ -171,7 +171,7 @@ print(myplot.RT.choice.hist)
 
 myplot = ggplot(data = choicedata, aes(
   x = cut(ev, breaks),
-  y = log(rt),
+  y = log_rt,
   fill = context
 )) +
   geom_violin() +
@@ -181,21 +181,37 @@ myplot = ggplot(data = choicedata, aes(
 #print(myplot)
 choicedata$amount_later_centered.2 = choicedata$amount_later_centered ^ 2
 
+# without order correction
 model = fitmodel(
-  "log(rt) ~ Group*Context + (1|subjID)", # background_col
+  #  "log_rt ~ Group*Context + (1|subjID)", 
+  "log_rt ~ Context + (1 + Context|subjID)", 
+  choicedata,
+  c("_RT_contextNOgroup_" = "ContextLow volatility")
+)
+
+
+# with order correction
+#source("../analysis_funcs.R")
+model = fitmodel(
+#  "log_rt ~ Group*Context + (1|subjID)", 
+  "log_rt ~ Group*Context + (1 + Group*Context|subjID)", 
   choicedata,
   c("_RT_context_" = "ContextLow volatility",
     "_RT_groupxcontext_" = "GroupLow vol. first:ContextLow volatility")
 )
 
-cc = fixef(model)["GroupLow vol. first:ContextLow volatility"]
-mm = model.matrix(model)
+#cc = fixef(model)["GroupLow vol. first:ContextLow volatility"]
+cc = fixef(model)["GroupLowvol.first:ContextLowvolatility", "Estimate"]
+mm <- model.matrix(as.formula("log_rt ~ Group*Context"), data = choicedata)
 
-rt.fixef = coef(summary(model))
+#rt.fixef = coef(summary(model))
+rt.fixef = fixef(model) 
 choicedata$rt.pred = exp(log(choicedata$rt) - cc * mm[, "GroupLow vol. first:ContextLow volatility"])
 
+
+
 model = fitmodel(
-  "log(rt) ~ Group*Context + Choice*(amount_later_centered + amount_later_centered.2) + (1|subjID)",
+  "log_rt ~ Group*Context + Choice*(amount_later_centered + amount_later_centered.2) + (1+Group*Context + Choice*(amount_later_centered + amount_later_centered.2)|subjID)",
   choicedata,
   c(
     "_RT_contextCORchoicexamount_" = "ContextLow volatility",
@@ -204,7 +220,7 @@ model = fitmodel(
   
 )
 
-rt.cor.fixef = coef(summary(model))
+rt.cor.fixef = fixef(model) #coef(summary(model))
 
 choicedata.median = choicedata %>%
   group_by(subjID,
@@ -289,7 +305,7 @@ myplot.trial.RT = ggplot(
     ymax = rt.median + rt.sem
   )
 ) +
-  geom_line(size = 0.5) +
+  geom_line(linewidth = 0.5) +
   geom_point(size = 0.5) +
   geom_errorbar() +
   xlim(420, 460) +
@@ -309,7 +325,7 @@ myplot.trial.RT = ggplot(
     ymax = rt.median + rt.sem
   )
 ) +
-  geom_line(size = 0.3, alpha = 0.5) +
+  geom_line(linewidth = 0.3, alpha = 0.5) +
   geom_point(size = 0.3, alpha = 0.5) +
   geom_errorbar(size = 0.3, alpha = 0.5) +
   xlab('Trial') +
@@ -318,4 +334,4 @@ myplot.trial.RT = ggplot(
 print(myplot.trial.RT)
 
 choicedata.trans = choicedata.trial.all %>% filter(index == 441) # & iscommon == T)
-t.test(log(rt) ~ Group, choicedata.trans)
+t.test(log_rt ~ Group, choicedata.trans)

@@ -89,7 +89,8 @@ myplot = ggplot(data = ratingdata.median, aes(x = Context, y = key.rt.median, gr
 print(myplot)
 
 model.rt = fitmodel(
-  "log(key.rt) ~ Group*Context + (1 | subjID)",
+  "log_key.rt ~ Group*Context + (1 +  Group*Context| subjID)",
+#  "log_key.rt ~ Group*Context + (1| subjID)",
   ratingdata,
   c(
     "_RatingRT_context_" = "ContextLow volatility",
@@ -98,10 +99,15 @@ model.rt = fitmodel(
 )
 print(summary(model.rt))
 
-cc = fixef(model.rt)["GroupLow vol. first:ContextLow volatility"]
-mm = model.matrix(model.rt)
+#cc = fixef(model.rt)["GroupLow vol. first:ContextLow volatility"]
+#mm = model.matrix(model.rt)
 
-ratingdata$key.rt.pred = exp(log(ratingdata$key.rt) - cc * mm[, "GroupLow vol. first:ContextLow volatility"])
+cc = fixef(model.rt)["GroupLowvol.first:ContextLowvolatility", "Estimate"]
+mm <- model.matrix(as.formula("log_key.rt ~ Group*Context"), data = ratingdata)
+colnames(mm) <- gsub(" ", "", colnames(mm))
+
+ratingdata$key.rt.pred = exp(log(ratingdata$key.rt) - cc * mm[, "GroupLowvol.first:ContextLowvolatility"])
+
 
 ratingdata.median.ev = ratingdata %>%
   group_by(subjID,

@@ -35,7 +35,7 @@ pars = c(
 
 ```{r, fig.width = 20}
 # Load previous fits
-load('../results/linear_drift_no_pooling_ddm-processed_data_censored-22-12-2023_23:53-10000-50000-jags.RData') 
+load('../results/linear_drift_no_pooling_ddm-processed_data_balanced_censored-10-07-2025_06:44-20000-50000-jags.RData') 
 #load('../results/linear_drift_no_pooling_ddm-processed_data_censored-22-12-2023_23:53-10000-50000-jags.RData') 
 
 chain1 = as.matrix(coda_samples[[1]])

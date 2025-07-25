@@ -80,7 +80,8 @@ print(myplot.range.group)
 print(myplot.range.order)
 
 model = fitmodel(
-  "bid.diff ~ Group*amount_later_centered + (1|subjID)",
+#  "bid.diff ~ Group*amount_later_centered + (1|subjID)",
+  "bid.diff ~ Group*amount_later_centered + (1 + Group*amount_later_centered|subjID)",
   ratingdata,
   c(
     "GroupLow vol. first:amount_later_centered",
@@ -102,12 +103,20 @@ model = fitmodel(
 )
 print(summary(model))
 
-cc.main = fixef(model)["GroupLow vol. first:ContextLow volatility"]
-cc.inter = fixef(model)["GroupLow vol. first:ContextLow volatility:ev"]
-mm = model.matrix(model)
+#cc.main = fixef(model)["GroupLow vol. first:ContextLow volatility"]
+#cc.inter = fixef(model)["GroupLow vol. first:ContextLow volatility:ev"]
+#mm = model.matrix(model)
+#ratingdata$bid.diff.pred = ratingdata$bid.diff - cc.main * mm[, "GroupLow vol. first:ContextLow volatility"]  -
+#  cc.inter * mm[, "GroupLow vol. first:ContextLow volatility:ev"]
 
-ratingdata$bid.diff.pred = ratingdata$bid.diff - cc.main * mm[, "GroupLow vol. first:ContextLow volatility"]  -
-  cc.inter * mm[, "GroupLow vol. first:ContextLow volatility:ev"]
+cc.main = fixef(model)["GroupLowvol.first:ContextLowvolatility", "Estimate"]
+cc.inter = fixef(model)["GroupLowvol.first:ContextLowvolatility:ev", "Estimate"]
+
+mm <- model.matrix(as.formula("bid.diff ~ Group*Context*ev"), data = ratingdata)
+colnames(mm) <- gsub(" ", "", colnames(mm))
+
+ratingdata$bid.diff.pred = ratingdata$bid.diff - cc.main * mm[, "GroupLowvol.first:ContextLowvolatility"]  -
+  cc.inter * mm[, "GroupLowvol.first:ContextLowvolatility:ev"]
 
 ratingdata.mean.agg = ratingdata %>%
   group_by(subjID, Context, amount_later) %>%

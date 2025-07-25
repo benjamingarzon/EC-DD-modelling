@@ -15,7 +15,7 @@ WD = '../../data'
 WDD = file.path(WD, 'experiment')
 
 # Set sampler parameters
-NTHIN = 10
+NTHIN = 20
 NCHAINS = 4
 
 ######################################################################
