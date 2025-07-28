@@ -212,6 +212,52 @@ for (mypar in mypars) {
 } 
 ```
 
+```{r}
+
+
+breaks = seq(0.5, 8.5, 1)
+choicedata = merge(
+  choicedata.common,
+  allIndPars %>% filter(subjID %in% include_subjects),
+  by = c(
+    'subjID',
+    'Context',
+    'context',
+    'Context_order',
+    'background_col',
+    'context_order',
+    'Group'
+  )
+)
+choicedata = choicedata %>% mutate(ev = amount_later, context_num = as.numeric(substr(context, 2, 2))) %>% mutate(ev.cut = cut(ev, breaks))
+
+choicedata.median = choicedata %>%
+  group_by(subjID,
+    Context,
+    context,
+    Context_order,
+    context_order,
+    Group,
+    ev.cut) %>%
+  dplyr::summarise(
+    rt.median = median(rt),
+    ev = mean(ev),
+    prob_late = mean(choice)
+  )
+
+choicedata.group = choicedata.median %>%
+  group_by(Context, Context_order, ev.cut, Group) %>%
+  dplyr::summarise(
+    rt.mean = mean(rt.median),
+    rt.sem = sem(rt.median),
+    prob_late.mean = mean(prob_late),
+    prob_late.sem = sem(prob_late),
+    ev = mean(ev)
+  )
+
+```
+
+
 
 # Plot RTs in relation to estimated subjective value
 ```{r RT analysis}
@@ -311,7 +357,11 @@ myformula <- as.formula(
   )
 )
 
-model <- fitmodel(myformula, ratingdata.all %>% filter(Group == co))
+model <- fitmodel(myformula, ratingdata.all %>% filter(Group == co), 
+c(sprintf("_diff_%s_%s_%s_main_", mypar.rating, mypar, co) = mypar,
+sprintf("_diff_%s_%s_%s_inter_", mypar.rating, mypar, co) = sprintf("%s*amount_later", mypar)
+))
+
 ss <- summary(model)
 print(myformula)
 print(ss)
@@ -440,7 +490,13 @@ for (mypar.rating in mypars.rating) {
       #main.mat = rbind(main.mat, c(mypar.rating, mypar, co, round(ss.1, 3)))
       #inter.mat = rbind(inter.mat, c(mypar.rating, mypar, co, round(ss.2, 3)))
 
-      model <- fitmodel(myformula, ratingdata %>% filter(context_order == co))
+      #model <- fitmodel(myformula, ratingdata %>% filter(context_order == co))
+
+      model <- fitmodel(myformula, ratingdata.all %>% filter(context_order == co), 
+      c(sprintf("_ratings_%s_%s_%s_main_", mypar.rating, mypar, co) = mypar,
+      sprintf("_ratings_%s_%s_%s_inter_", mypar.rating, mypar, co) = sprintf("%s*amount_later", mypar)
+      ))
+
 
       ss <- summary(model)
       print(myformula)
@@ -465,7 +521,7 @@ for (mypar.rating in mypars.rating) {
                                   color = 'Context',
                                   group = 'subjID'
                                 )) +
-      #  geom_line(size = 0.5, alpha = 0.4) +
+      #  geom_line(linewidth = 0.5, alpha = 0.4) +
       #  geom_point(size = 0.5, alpha = 0.4) +
       geom_line() +
       geom_point() +
@@ -536,7 +592,7 @@ print(myplot)
 
 # Check correlation between parameters
 
-```{r Parameter correlations, fig.width=}
+```{r Parameter correlations, fig.width=15}
 options(width = 300)
 
 mydata = allIndPars %>% filter(subjID %in% include_subjects  &
@@ -764,7 +820,6 @@ reg_labels = c(
 choice.labels = unlist(reg_labels[rownames(choice.fixef)])
 choice.fixef = apply(choice.fixef, 2, reformat)
 choice.fixef = as.data.frame(choice.fixef)
-choice.fixef = add_ci_column(choice.fixef)
 #colnames(choice.fixef) =  c(
 # "Estimate",
 # "Est.Error",    
@@ -772,17 +827,16 @@ choice.fixef = add_ci_column(choice.fixef)
 # "p-value")
 
 choice.fixef = data.frame(Parameter = choice.labels, choice.fixef)
+choice.fixef = add_ci_column(choice.fixef)
 
 # rt
 rt.labels = unlist(reg_labels[rownames(rt.fixef)])
 rt.fixef = apply(rt.fixef, 2, reformat)
 rt.fixef = as.data.frame(rt.fixef)
-rt.fixef = add_ci_column(rt.fixef)
 
 rt.cor.labels = unlist(reg_labels[rownames(rt.cor.fixef)])
 rt.cor.fixef = apply(rt.cor.fixef, 2, reformat)
 rt.cor.fixef = as.data.frame(rt.cor.fixef)
-rt.cor.fixef = add_ci_column(rt.cor.fixef)
 #colnames(rt.fixef) = colnames(rt.cor.fixef) =  
 #c(
 # "Estimate",
@@ -792,6 +846,8 @@ rt.cor.fixef = add_ci_column(rt.cor.fixef)
 # "p-value")
 rt.fixef = data.frame(Parameter = rt.labels, rt.fixef)
 rt.cor.fixef = data.frame(Parameter = rt.cor.labels, rt.cor.fixef)
+rt.fixef = add_ci_column(rt.fixef)
+rt.cor.fixef = add_ci_column(rt.cor.fixef)
 
 #statslist['_table_choice.fixef_'] = tab_to_str(choice.fixef[, c(1,2,4,5)])
 #statslist['_table_rt.fixef_'] = tab_to_str(rt.fixef[, c(1,2,5,4,6)])
@@ -814,12 +870,13 @@ fileout = ifelse(!init100,
   '../results/results_text_fixed.txt',
   '../results/results_text_fixed_100.txt')
 
-text = readLines(filein)
+mytext = readLines(filein)
 print(statslist)
 text.new = NULL
 placeholders = names(statslist)
-for (line in text){ 
+for (line in mytext){ 
 for (placeholder in placeholders){
+  print(placeholder)
   line = gsub(placeholder, replacement = statslist[placeholder], line)
 }
 text.new = c(text.new, line)
