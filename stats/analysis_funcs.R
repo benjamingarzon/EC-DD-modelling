@@ -11,6 +11,7 @@ library(GGally)
 library(ggh4x)
 library(pracma)
 library(brms)
+library(posterior)
 conversion_rate = 6 / 8 # USD to GBP
 base_rate = 6
 BRMS_ITER = 600 #0
@@ -315,7 +316,7 @@ get_par_jags = function(par, var, var2=NULL, ylimit=NULL){
 # get statistics
 ########################################################################################################
 
-get_stats = function(model, param, family) {
+get_stats = function(model, param, family=NULL, add_posterior = TRUE) {
   print("------------")
   print(param)
   if (inherits(model, "brmsfit")) {
@@ -324,13 +325,30 @@ get_stats = function(model, param, family) {
     row_idx <- which(rownames(summ) == paste0("b_", param_clean))
     if (length(row_idx) == 0) stop(paste("Parameter", param, "not found in model summary"))
     vals <- as.numeric(summ[row_idx, ])
+
     # vals: mean, est.error, l-95%, u-95%, Rhat, Bulk_ESS, Tail_ESS
-    out = sprintf(
-      "b = %s, 95%% CI = [%s, %s]",
-      round(vals[1], digits = 3),
-      round(vals[3], digits = 3),
-      round(vals[4], digits = 3)
-    )
+    if (add_posterior) {
+      # Use modern posterior extraction method
+      posterior_draws <- as_draws_df(model)
+      param_col <- paste0("b_", param_clean)
+      
+      if (param_col %in% names(posterior_draws)) {
+        # Compute posterior probability that value is positive or negative
+        if (vals[1] > 0) {
+          post_prob <- mean(posterior_draws[[param_col]] > 0)
+          out = sprintf("b = %.3f, 95%% CI = [%.3f, %.3f], P(b > 0) = %.3f", vals[1], vals[3], vals[4], post_prob)
+        } else {
+          post_prob <- mean(posterior_draws[[param_col]] < 0)
+          out = sprintf("b = %.3f, 95%% CI = [%.3f, %.3f], P(b < 0) = %.3f", vals[1], vals[3], vals[4], post_prob)
+        }
+      } else {
+        warning(paste("Parameter", param_col, "not found in posterior draws"))
+        out = sprintf("b = %.3f, 95%% CI = [%.3f, %.3f]", vals[1], vals[3], vals[4])
+      }
+    } else {
+      out = sprintf("b = %.3f, 95%% CI = [%.3f, %.3f]", vals[1], vals[3], vals[4])
+    }
+
     # p-value is not directly available for brmsfit, so not reported
   } else {
     vals = summary(model)$coefficients[param,]
@@ -460,11 +478,13 @@ fitmodel = function(ff,
       std_info[[v]] <- list(mean = mu, sd = sigma)
     }
   }
+
   priors <- c(
-    set_prior("normal(0, 5)", class = "b"),
+    set_prior("normal(0, 10)", class = "b"),
     set_prior("cauchy(0, 10)", class = "sd"),
-    set_prior("normal(0, 5)", class = "Intercept")
+    set_prior("normal(0, 10)", class = "Intercept")
   )
+    
   #if (family == "binomial") {
   #  priors <- c(priors, set_prior("beta(1, 1)", class = "Intercept"))
   #} else {
@@ -485,21 +505,21 @@ fitmodel = function(ff,
     sample_prior = "yes"
   )
   # Unstandardize fixed effects estimates
-  fixef_raw <- fixef(model)
-  fixef_unstd <- fixef_raw
-  for (v in pred_vars_main) {
-    if (!is.null(std_info[[v]])) {
-      fixef_unstd[v, "Estimate"] <- fixef_raw[v, "Estimate"] * std_info[[dep_var]]$sd / std_info[[v]]$sd
-      fixef_unstd[v, "Q2.5"] <- fixef_raw[v, "Q2.5"] * std_info[[dep_var]]$sd / std_info[[v]]$sd
-      fixef_unstd[v, "Q97.5"] <- fixef_raw[v, "Q97.5"] * std_info[[dep_var]]$sd / std_info[[v]]$sd
-    }
-  }
+#  fixef_raw <- fixef(model)
+#  fixef_unstd <- fixef_raw
+#  for (v in pred_vars_main) {
+#    if (!is.null(std_info[[v]])) {
+#      fixef_unstd[v, "Estimate"] <- fixef_raw[v, "Estimate"] * std_info[[dep_var]]$sd / std_info[[v]]$sd
+#      fixef_unstd[v, "Q2.5"] <- fixef_raw[v, "Q2.5"] * std_info[[dep_var]]$sd / std_info[[v]]$sd
+#      fixef_unstd[v, "Q97.5"] <- fixef_raw[v, "Q97.5"] * std_info[[dep_var]]$sd / std_info[[v]]$sd
+#    }
+#  }
   # Unstandardize intercept
-  fixef_unstd["Intercept", "Estimate"] <- fixef_raw["Intercept", "Estimate"] * std_info[[dep_var]]$sd + std_info[[dep_var]]$mean
-  fixef_unstd["Intercept", "Q2.5"] <- fixef_raw["Intercept", "Q2.5"] * std_info[[dep_var]]$sd + std_info[[dep_var]]$mean
-  fixef_unstd["Intercept", "Q97.5"] <- fixef_raw["Intercept", "Q97.5"] * std_info[[dep_var]]$sd + std_info[[dep_var]]$mean
+#  fixef_unstd["Intercept", "Estimate"] <- fixef_raw["Intercept", "Estimate"] * std_info[[dep_var]]$sd + std_info[[dep_var]]$mean
+#  fixef_unstd["Intercept", "Q2.5"] <- fixef_raw["Intercept", "Q2.5"] * std_info[[dep_var]]$sd + std_info[[dep_var]]$mean
+#  fixef_unstd["Intercept", "Q97.5"] <- fixef_raw["Intercept", "Q97.5"] * std_info[[dep_var]]$sd + std_info[[dep_var]]$mean
 
-  model$fixef_unstd <- fixef_unstd
+#  model$fixef_unstd <- fixef_unstd
 
   # Visualize prior vs posterior for fixed effects
   prior_post_plot <- plot(model, ask = FALSE, plot = TRUE, combo = c("dens_overlay", "hist", "trace"), prior = TRUE)
