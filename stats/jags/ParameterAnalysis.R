@@ -155,7 +155,7 @@ for (parameter in parameters) {
 #  mm = model.matrix(model)
 #  allIndPars.good[parameter] = allIndPars.good[parameter] - cc.main *
 #    mm[, "GroupLow vol. first:ContextLow volatility"]
-  cc.main = fixef(model)["GroupLowvol.first:ContextLowvolatility"]
+  cc.main = fixef(model)["GroupLowvol.first:ContextLowvolatility", "Estimate"]
   parameter_pred = paste(parameter, 'pred', sep = '.')
   allIndPars.good[parameter] = allIndPars.good[parameter] - cc.main *
     mm[, "GroupLowvol.first:ContextLowvolatility"]

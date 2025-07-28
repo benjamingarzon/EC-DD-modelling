@@ -38,7 +38,7 @@ myplot.range.all = ggplot(data = ratingdata, aes(
   color = Context,
   group = subjID
 )) +
-  geom_line(size = 0.5, alpha = 0.4) +
+  geom_line(linewidth = 0.5, alpha = 0.4) +
   geom_point(size = 0.5, alpha = 0.4) +
   xlab('Subjective value of later amount ($)') +
   ylab('Willingness-to-pay range ($)') + facet_grid(Group ~ Context)

@@ -1,5 +1,5 @@
 
-
+if (F){
 breaks = seq(0.5, 8.5, 1)
 choicedata = merge(
   choicedata.common,
@@ -16,6 +16,34 @@ choicedata = merge(
 )
 choicedata = choicedata %>% mutate(ev = amount_later, context_num = as.numeric(substr(context, 2, 2))) %>% mutate(ev.cut = cut(ev, breaks))
 
+choicedata.median = choicedata %>%
+  group_by(subjID,
+    Context,
+    context,
+    Context_order,
+    context_order,
+    Group,
+    ev.cut) %>%
+  dplyr::summarise(
+    rt.median = median(rt),
+    ev = mean(ev),
+    prob_late = mean(choice)
+  )
+
+choicedata.group = choicedata.median %>%
+  group_by(Context, Context_order, ev.cut, Group) %>%
+  dplyr::summarise(
+    rt.mean = mean(rt.median),
+    rt.sem = sem(rt.median),
+    prob_late.mean = mean(prob_late),
+    prob_late.sem = sem(prob_late),
+    ev = mean(ev)
+  )
+
+}
+#################
+
+
 myplot.RT = ggplot(data = choicedata, aes(
   x = jitter(ev),
   y = log_rt,
@@ -28,19 +56,6 @@ myplot.RT = ggplot(data = choicedata, aes(
 
 print(myplot.RT)
 
-choicedata.median = choicedata %>%
-  group_by(subjID,
-           Context,
-           context,
-           Context_order,
-           context_order,
-           Group,
-           ev.cut) %>%
-  dplyr::summarise(
-    rt.median = median(rt),
-    ev = mean(ev),
-    prob_late = mean(choice)
-  )
 
 myplot.RT = ggplot(data = choicedata.median, aes(
   x = ev,
@@ -76,15 +91,6 @@ myplot.RT = ggplot(data = choicedata.median.sub, aes(x = Context,
   ylab('Response time (s)') + facet_grid(. ~ Group)
 print(myplot.RT)
 
-choicedata.group = choicedata.median %>%
-  group_by(Context, Context_order, ev.cut, Group) %>%
-  dplyr::summarise(
-    rt.mean = mean(rt.median),
-    rt.sem = sem(rt.median),
-    prob_late.mean = mean(prob_late),
-    prob_late.sem = sem(prob_late),
-    ev = mean(ev)
-  )
 
 myplot.RT = ggplot(
   data = choicedata.group,
@@ -197,6 +203,7 @@ model = fitmodel(
   "log_rt ~ Group*Context + (1 + Group*Context|subjID)", 
   choicedata,
   c("_RT_context_" = "ContextLow volatility",
+    "_RT_group_" = "GroupLow vol. first",
     "_RT_groupxcontext_" = "GroupLow vol. first:ContextLow volatility")
 )
 
@@ -334,4 +341,4 @@ myplot.trial.RT = ggplot(
 print(myplot.trial.RT)
 
 choicedata.trans = choicedata.trial.all %>% filter(index == 441) # & iscommon == T)
-t.test(log_rt ~ Group, choicedata.trans)
+t.test(log(rt) ~ Group, choicedata.trans)
