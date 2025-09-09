@@ -14,8 +14,13 @@ library(brms)
 library(posterior)
 conversion_rate = 6 / 8 # USD to GBP
 base_rate = 6
-BRMS_ITER = 600 #0
-BRMS_WARMUP = 300 #0
+BRMS_ITER = 6000 # 8000 
+BRMS_WARMUP = 3000 # 4000 
+NCHAINS = 16
+NCORES = 16
+
+statslist = list()
+convergelist = list()
 
 par_labels =  c("b.drift.intercept.p" = "Drift intercept",
                 "b.drift.amount.p" = "Drift\nsensitivity",
@@ -336,10 +341,19 @@ get_stats = function(model, param, family=NULL, add_posterior = TRUE) {
         # Compute posterior probability that value is positive or negative
         if (vals[1] > 0) {
           post_prob <- mean(posterior_draws[[param_col]] > 0)
-          out = sprintf("b = %.3f, 95%% CI = [%.3f, %.3f], P(b > 0) = %.3f", vals[1], vals[3], vals[4], post_prob)
+            if (1 - post_prob < 1e-3) {
+            out = sprintf("b = %.3f, 95%% CI = [%.3f, %.3f], P(b<0) < 1e-3", vals[1], vals[3], vals[4])
+            } else {
+            out = sprintf("b = %.3f, 95%% CI = [%.3f, %.3f], P(b<0) = %.3f", vals[1], vals[3], vals[4], 1 - post_prob)
+            }
         } else {
           post_prob <- mean(posterior_draws[[param_col]] < 0)
-          out = sprintf("b = %.3f, 95%% CI = [%.3f, %.3f], P(b < 0) = %.3f", vals[1], vals[3], vals[4], post_prob)
+            if (1 - post_prob < 1e-3) {
+            out = sprintf("b = %.3f, 95%% CI = [%.3f, %.3f], P(b>0) < 1e-3", vals[1], vals[3], vals[4])
+            } else {
+            out = sprintf("b = %.3f, 95%% CI = [%.3f, %.3f], P(b>0) = %.3f", vals[1], vals[3], vals[4], 1 - post_prob)
+            }
+
         }
       } else {
         warning(paste("Parameter", param_col, "not found in posterior draws"))
@@ -384,6 +398,29 @@ get_stats = function(model, param, family=NULL, add_posterior = TRUE) {
   print(out)
 }
 
+get_fixef <- function(model) {
+    # Get posterior summary for all fixed effects
+    summ <- as.data.frame(posterior_summary(model))
+    # Only keep fixed effects (start with "b_")
+    fe_idx <- grep("^b_", rownames(summ))
+    fe_names <- gsub("^b_", "", rownames(summ)[fe_idx])
+    # Get posterior draws
+    draws <- as_draws_df(model)
+    out <- round(summ[fe_idx, c("Estimate", "Est.Error", "Q2.5", "Q97.5")], 3)
+    rownames(out) <- fe_names
+    # Compute two-sided Bayesian p-value for each parameter
+    for (i in seq_along(fe_names)) {
+      col <- paste0("b_", fe_names[i])
+      if (col %in% names(draws)) {
+        draws_col <- draws[[col]]
+        # Two-sided: probability that sign is opposite to mean
+        mean_val <- mean(draws_col, na.rm = TRUE)
+        pval <- 2 * min(mean(draws_col > 0, na.rm = TRUE), mean(draws_col < 0, na.rm = TRUE))
+        #out$`P(|b|)`[i] <- round(pval, 3)
+      }
+    }
+    return(out)
+}
 
 ########################################################################################################
 # model fitting
@@ -394,8 +431,8 @@ fitmodel = function(ff,
           params = NULL,
           family = NULL,
           uselmer = FALSE,
-          cores = 4,
-          chains = 4,
+          cores = NCORES,
+          chains = NCHAINS,
           iter = BRMS_ITER,
           warmup = BRMS_WARMUP,
           set_priors = T, 
@@ -479,6 +516,7 @@ fitmodel = function(ff,
     }
   }
 
+
   priors <- c(
     set_prior("normal(0, 10)", class = "b"),
     set_prior("cauchy(0, 10)", class = "sd"),
@@ -502,6 +540,7 @@ fitmodel = function(ff,
     warmup = warmup,
     thin = thin,
     seed = seed,
+    control = list(adapt_delta = 0.95),
     sample_prior = "yes"
   )
   # Unstandardize fixed effects estimates
@@ -547,7 +586,16 @@ fitmodel = function(ff,
 
   }
 
+  print(ff)
+  summ <- as.data.frame(summary(model)$fixed)
+  rhat_max <- max(summ$Rhat, na.rm = TRUE)
+  ess_min <- min(summ$Bulk_ESS, na.rm = TRUE)
+  tail_ess_min <- min(summ$Tail_ESS, na.rm = TRUE)
+  cat(sprintf("Largest Rhat: %.3f\n", rhat_max))
+  cat(sprintf("Smallest Bulk_ESS: %.0f\n", ess_min))
+  cat(sprintf("Smallest Tail_ESS: %.0f\n", tail_ess_min))
 
+  convergelist <<- c(convergelist, list(list(formula = ff, rhat_max = rhat_max, ess_min = ess_min, tail_ess_min = tail_ess_min)))
 
   if (!is.null(params)) {
     for (i in seq_along(params)) {
@@ -680,8 +728,8 @@ fitmodel_default_priors = function(ff,
           params = NULL,
           family = NULL,
           uselmer = FALSE,
-          cores = 4,
-          chains = 4,
+          cores = NCORES,
+          chains = NCHAINS,
           iter = BRMS_ITER,
           warmup = BRMS_WARMUP,
           thin = 1,

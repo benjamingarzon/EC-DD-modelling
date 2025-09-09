@@ -1,36 +1,35 @@
+---
+title: "Analysis"
+output: html_document
+---
 
 # Perform analyses on response variables and DDM parameters
-
 
 ```{r}
 # detach("package:plotly", unload=TRUE)
 rm(list = ls())
 
-options(tmpdir = "../tmp")
-
 source("../analysis_funcs.R")
-
-statslist = list()
 
 WD = '../../data'
 WDD = file.path(WD, 'experiment')
-IMAGE_FILE = file.path("../results/AnalysisDDMModelParameters_workspace.RData")
 mytheme = theme_classic(base_size = 11) + theme(legend.position = 'bottom', legend.title = element_blank())
 theme_set(mytheme)
 # Load previous fit
 #MYFILE = '../results/linear_drift_no_pooling_corr_ddm-processed_data_censored-27-12-2023_07:59-10000-50000-jags-pars.RData'
 #MYFILE = '../results/linear_drift_no_pooling_bd_ddm-processed_data_censored-27-12-2023_20:07-10000-50000-jags-pars.RData'
-init100 = F
+init100 = F #params$init100 == 'true'
 if (init100) {
-  MYFILE = '../results/linear_drift_no_pooling_ddm-processed_data_balanced_censored_100-10-07-2025_01:09-20000-50000-jags-pars.RData'
+  MYFILE = '../results/linear_drift_no_pooling_ddm-processed_data_balanced_censored_100-08-08-2025_07:15-20000-50000-jags-pars.RData'
 load(MYFILE)
 load(file.path(WDD, "processed_data_balanced_censored_100.RData"))
+IMAGE_FILE = file.path("../results/AnalysisDDMModelParameters_workspace_100")
 
 } else {
-  MYFILE = '../results/linear_drift_no_pooling_ddm-processed_data_balanced_censored-10-07-2025_06:44-20000-50000-jags-pars.RData'
+  MYFILE = '../results/linear_drift_no_pooling_ddm-processed_data_balanced_censored-08-08-2025_14:53-20000-50000-jags-pars.RData'
 load(MYFILE)
 load(file.path(WDD, "processed_data_balanced_censored.RData"))
-
+IMAGE_FILE = file.path("../results/AnalysisDDMModelParameters_workspace")
 }
 
 numSubjs = dataList$N
@@ -271,6 +270,11 @@ choicedata.order = choicedata.order %>% group_by(Context, context, context_order
 print(choicedata.order)
 ```
 
+```{r Save all 0}
+save.image(file = paste0(IMAGE_FILE, "_0.RData"))
+```
+
+
 # Check response probabilities
 ```{r Choice analysis}
 source('./ChoiceAnalysis.R')
@@ -281,6 +285,11 @@ source('./ChoiceAnalysis.R')
 ```{r Rating analysis}
 source('./RatingAnalysis.R')
 ```
+
+```{r Save all 1}
+save.image(file = paste0(IMAGE_FILE, "_1.RData"))
+```
+
 
 # Difference in ratings vs difference in DDM parameters
 ```{r Differences}
@@ -357,22 +366,21 @@ myformula <- as.formula(
   )
 )
 
-model <- fitmodel(myformula, ratingdata.all %>% filter(Group == co), 
-c(sprintf("_diff_%s_%s_%s_main_", mypar.rating, mypar, co) = mypar,
-sprintf("_diff_%s_%s_%s_inter_", mypar.rating, mypar, co) = sprintf("%s*amount_later", mypar)
-))
+pars <- c(mypar, sprintf("%s:amount_later", mypar))
+names(pars) <- c(sprintf("_diff_%s_%s_%s_main_", mypar.rating, mypar, co), sprintf("_diff_%s_%s_%s_inter_", mypar.rating, mypar, co))
+model <- fitmodel(myformula, ratingdata.all %>% filter(Group == co), pars)
 
 ss <- summary(model)
 print(myformula)
 print(ss)
 # Extract posterior means and summary statistics for fixed effects
-fe_summary <- as.data.frame(fixef(model))
+fe_summary <- get_fixef(model)
 #ss.1 <- fe_summary[sprintf("scale%s", mypar), c("Estimate", "Est.Error", "Q2.5", "Q97.5")]
 #ss.2 <- fe_summary[sprintf("scale%s:scaleamount_later", mypar), c("Estimate", "Est.Error", "Q2.5", "Q97.5")]
-ss.1 <- fe_summary[sprintf("%s", mypar), c("Estimate", "Est.Error", "Q2.5", "Q97.5")]
-ss.2 <- fe_summary[sprintf("%s:amount_later", mypar), c("Estimate", "Est.Error", "Q2.5", "Q97.5")]
-main.mat <- rbind(main.mat, c(mypar.rating, mypar, co, round(ss.1, 3)))
-inter.mat <- rbind(inter.mat, c(mypar.rating, mypar, co, round(ss.2, 3)))
+ss.1 <- fe_summary[mypar, ] #c("Estimate", "Est.Error", "Q2.5", "Q97.5")]
+ss.2 <- fe_summary[sprintf("%s:amount_later", mypar), ] #c("Estimate", "Est.Error", "Q2.5", "Q97.5")]
+main.mat <- rbind(main.mat, c(mypar.rating, mypar, co, ss.1))
+inter.mat <- rbind(inter.mat, c(mypar.rating, mypar, co, ss.2))
 }
 }
 }
@@ -444,8 +452,8 @@ source("./RatingRTanalysis.R")
 
 ```
 
-```{r Save all 1}
-save.image(file = IMAGE_FILE)
+```{r Save all 2}
+save.image(file = paste0(IMAGE_FILE, "_2.RData"))
 ```
 
 # Random slopes of ratings vs DDM parameters
@@ -492,23 +500,23 @@ for (mypar.rating in mypars.rating) {
 
       #model <- fitmodel(myformula, ratingdata %>% filter(context_order == co))
 
-      model <- fitmodel(myformula, ratingdata.all %>% filter(context_order == co), 
-      c(sprintf("_ratings_%s_%s_%s_main_", mypar.rating, mypar, co) = mypar,
-      sprintf("_ratings_%s_%s_%s_inter_", mypar.rating, mypar, co) = sprintf("%s*amount_later", mypar)
-      ))
-
+      pars <- c(mypar, sprintf("%s:amount_later", mypar))
+      names(pars) <- c(sprintf("_diff_%s_%s_%s_main_", mypar.rating, mypar, co), sprintf("_diff_%s_%s_%s_inter_", mypar.rating, mypar, co))
+      model <- fitmodel(myformula, ratingdata %>% filter(context_order == co), pars)
 
       ss <- summary(model)
       print(myformula)
       print(ss)
       # Extract posterior means and summary statistics for fixed effects
-      fe_summary <- as.data.frame(fixef(model))
+      
+      fe_summary <- get_fixef(model)
       #ss.1 <- fe_summary[sprintf("scale%s", mypar), c("Estimate", "Est.Error", "Q2.5", "Q97.5")]
       #ss.2 <- fe_summary[sprintf("scale%s:scaleamount_later", mypar), c("Estimate", "Est.Error", "Q2.5", "Q97.5")]
-      ss.1 <- fe_summary[sprintf("%s", mypar), c("Estimate", "Est.Error", "Q2.5", "Q97.5")]
-      ss.2 <- fe_summary[sprintf("%s:amount_later", mypar), c("Estimate", "Est.Error", "Q2.5", "Q97.5")]
-      main.mat <- rbind(main.mat, c(mypar.rating, mypar, co, round(ss.1, 3)))
-      inter.mat <- rbind(inter.mat, c(mypar.rating, mypar, co, round(ss.2, 3)))
+      ss.1 <- fe_summary[mypar, ] #c("Estimate", "Est.Error", "Q2.5", "Q97.5")]
+      ss.2 <- fe_summary[sprintf("%s:amount_later", mypar), ] #c("Estimate", "Est.Error", "Q2.5", "Q97.5")]
+      main.mat <- rbind(main.mat, c(mypar.rating, mypar, co, ss.1))
+      inter.mat <- rbind(inter.mat, c(mypar.rating, mypar, co, ss.2))
+
 
   }
     
@@ -573,8 +581,8 @@ statslist['_table_range_inter_'] = tab_to_str(inter.mat)
 source('./ParameterAnalysis.R')
 ```
 
-```{r Save all 2}
-save.image(file = IMAGE_FILE)
+```{r Save all 3}
+save.image(file = paste0(IMAGE_FILE, "_3.RData"))
 ```
 
 
@@ -859,9 +867,6 @@ statslist['_table_rt.cor.fixef_'] = tab_to_str(rt.cor.fixef)
 
 ```
 
-```{r Save all 3}
-save.image(file = IMAGE_FILE)
-```
 
 
 ```{r Write results}
@@ -887,7 +892,13 @@ writeLines(text.new, con = fileout)
 ```
 
 
+```{r}
+convergelist_df <- as.data.frame(do.call(rbind, convergelist))
+convergelist_df <- convergelist_df %>%mutate(rhat_max = unlist(rhat_max), ess_min = unlist(ess_min), tail_ess_min = unlist(tail_ess_min))
+print(convergelist_df)
+```
+
 ```{r Save all 4}
-save.image(file = IMAGE_FILE)
+save.image(file = paste0(IMAGE_FILE, "_4.RData"))
 ```
 

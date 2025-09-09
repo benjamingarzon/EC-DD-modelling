@@ -212,7 +212,7 @@ cc = fixef(model)["GroupLowvol.first:ContextLowvolatility", "Estimate"]
 mm <- model.matrix(as.formula("log_rt ~ Group*Context"), data = choicedata)
 
 #rt.fixef = coef(summary(model))
-rt.fixef = fixef(model) 
+rt.fixef = get_fixef(model) 
 choicedata$rt.pred = exp(log(choicedata$rt) - cc * mm[, "GroupLow vol. first:ContextLow volatility"])
 
 

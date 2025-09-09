@@ -83,6 +83,8 @@ model = fitmodel(
   family = 'binomial'
 )
 
+model.choice1 = model
+
 # with order correction
 
 model = fitmodel(
@@ -99,6 +101,7 @@ model = fitmodel(
   family = 'binomial'
 )
 
+model.choice2 = model
 # model = fitmodel(
 #   "choice ~ Group + Context + amount_later_centered + Group:Context + Context:amount_later_centered  + background_col + (1|subjID)",
 #   choicedata,
@@ -112,33 +115,47 @@ model = fitmodel(
 
 print(summary(model))
 
-mm <- model.matrix(as.formula("choice ~ Group*Context*amount_later_centered"), data = choicedata)
-colnames(mm) <- gsub(" ", "", colnames(mm))
-inds <- c(1, 2, 3, 4, 6, 7)
-colnames(mm)[1] <- "Intercept"
+library(posterior)
+
+# Extract draws as a data frame
+draws_df <- as_draws_df(model)
+
+draws_df[, c(5)] <- 0
+
+new_predictions <- posterior_predict(model,
+  newdata = choicedata,
+  re_formula = ~(1 + Group*Context*amount_later_centered|subjID),
+  fixed_effects = draws_df)
+
+#mm <- model.matrix(as.formula("choice ~ Group*Context*amount_later_centered"), data = choicedata)
+#colnames(mm) <- gsub(" ", "", colnames(mm))
+#inds <- c(1, 2, 3, 4, 6, 7)
+#colnames(mm)[1] <- "Intercept"
 #inds <- c(1, 3, 4, 7)
+
+
 
 #ffx <- fixef(model)
 #fefs <- names(ffx)[inds]
 #rfx <- ranef(model)$subjID[,"Estimate"]
 #eta <- mm[, fefs] %*% ffx[fefs] + rfx[choicedata$subjID, 1]
 
-ffx <- fixef(model)[,"Estimate"]
-fefs <- names(ffx)#[inds]
-ffx_zeroed <- ffx
-fefs_zeroed <- fefs
-ffx_zeroed[fefs_zeroed[5]] <- 0  # zero the effect of the 5th predictor
+#ffx <- fixef(model)[,"Estimate"]
+#fefs <- names(ffx)#[inds]
+#ffx_zeroed <- ffx
+#fefs_zeroed <- fefs
+#ffx_zeroed[fefs_zeroed[5]] <- 0  # zero the effect of the 5th predictor
 
 #rfx <- ranef(model)$subjID[,"Estimate", ]
 #print(fefs)
 #eta <- mm[, fefs] %*% ffx[fefs] + rfx[choicedata$subjID]
 
-rfx <- ranef(model)$subjID[, , "Intercept"][, "Estimate"]
-subj_index <- match(choicedata$subjID, names(rfx))
-rfx_vec <- rfx[subj_index]
+#rfx <- ranef(model)$subjID[, , "Intercept"][, "Estimate"]
+#subj_index <- match(choicedata$subjID, names(rfx))
+#rfx_vec <- rfx[subj_index]
 
-eta <- mm[, fefs_zeroed] %*% ffx_zeroed[fefs_zeroed] + rfx_vec
-choice.pred <- plogis(eta)
+#eta <- mm[, fefs_zeroed] %*% ffx_zeroed[fefs_zeroed] + rfx_vec
+choice.pred <- colMeans(new_predictions) #plogis(eta)
 
 #choice.pred <- (plogis(eta) + residuals(model, type='response'))
 
@@ -149,7 +166,7 @@ choicedata$choice.pred <- choice.pred
 cor.test(choice.pred, choicedata$choice)
 boxplot(choice.pred ~ choicedata$choice)
 #choice.fixef = coef(summary(model))
-choice.fixef = fixef(model) 
+choice.fixef = get_fixef(model) 
 
 choicedata.mean.agg <- choicedata %>%
   group_by(subjID,

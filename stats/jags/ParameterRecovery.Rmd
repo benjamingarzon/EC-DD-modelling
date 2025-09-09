@@ -16,10 +16,11 @@ theme_set(mytheme)
 WD = '../../data'
 WDD = file.path(WD, 'experiment')
 
-PARSFILE = '../results/linear_drift_no_pooling_ddm-processed_data_censored-22-12-2023_23:53-10000-50000-jags-pars.RData'
-OUTPUTFILE = 'processed_data_censored-simulated.RData'
+PARSFILE = '../results/linear_drift_no_pooling_ddm-processed_data_balanced_censored-08-08-2025_14:53-20000-50000-jags-pars.RData'
+
+OUTPUTFILE = 'processed_data_balanced_censored-simulated.RData'
 load(PARSFILE)
-load(file.path(WDD, "processed_data_censored.RData"))
+load(file.path(WDD, "processed_data_balanced_censored.RData"))
 
 ```
 
