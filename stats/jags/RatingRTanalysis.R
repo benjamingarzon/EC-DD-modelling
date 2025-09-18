@@ -8,9 +8,6 @@ myplot = ggplot(data = ratingdata, aes(x = bid.high.rt, y = bid.low.rt, col = Co
   ylab('Response time') + facet_grid(Context ~ Group)
 print(myplot)
 
-# use last slider response time
-ratingdata$key.rt.orig = ratingdata$key.rt
-ratingdata$key.rt = ratingdata$bid.rt.max
 
 ratingdata.median = ratingdata %>%
   group_by(subjID, Context, context_order, Context_order, Group) %>%
@@ -102,11 +99,12 @@ print(summary(model.rt))
 #cc = fixef(model.rt)["GroupLow vol. first:ContextLow volatility"]
 #mm = model.matrix(model.rt)
 
-cc = fixef(model.rt)["GroupLowvol.first:ContextLowvolatility", "Estimate"]
+cc = get_fixef(model.rt)["GroupLowvol.first:ContextLowvolatility", "Estimate"]
 mm <- model.matrix(as.formula("log_key.rt ~ Group*Context"), data = ratingdata)
 colnames(mm) <- gsub(" ", "", colnames(mm))
 
 ratingdata$key.rt.pred = exp(log(ratingdata$key.rt) - cc * mm[, "GroupLowvol.first:ContextLowvolatility"])
+
 
 
 ratingdata.median.ev = ratingdata %>%

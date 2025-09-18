@@ -14,10 +14,12 @@ library(brms)
 library(posterior)
 conversion_rate = 6 / 8 # USD to GBP
 base_rate = 6
-BRMS_ITER = 6000 # 8000 
-BRMS_WARMUP = 3000 # 4000 
-NCHAINS = 16
-NCORES = 16
+BRMS_ITER = 6000 #4000 # 8000 
+BRMS_WARMUP = 3000 #2000 # 4000 
+NCHAINS = 10
+NCORES = 10
+ALGORITHM = "sampling" # meanfield
+ADAPT_DELTA = 0.95
 
 statslist = list()
 convergelist = list()
@@ -310,7 +312,7 @@ get_par_jags = function(par, var, var2=NULL, ylimit=NULL){
   par.melt = subset(par.melt, subjID %in% include_subjects)
   par.melt = par.melt %>% group_by(x, z, sample, context_order) %>% summarise(value = mean(value)) %>% ungroup() %>% filter(x != "NotRecorded")
   myplot = ggplot(par.melt, # %>% filter(context_order <3),
-                  aes(x = x, y = value, fill = x)) + geom_violin() + ggtitle(par) + xlab(var) + labs(fill = var)  
+    aes(x = x, y = value, fill = x)) + geom_violin() + ggtitle(par) + xlab(var) + labs(fill = var)  
   if (!is.null(var2)) myplot = myplot + facet_grid(. ~ z)
   if(!is.null(ylimit)) myplot = myplot + ylim(ylimit)
   print(myplot)
@@ -326,7 +328,7 @@ get_stats = function(model, param, family=NULL, add_posterior = TRUE) {
   print(param)
   if (inherits(model, "brmsfit")) {
     param_clean = gsub(" ", "", param)
-    summ <- as.data.frame(posterior_summary(model))
+    summ <- model$posterior_summary_unstd
     row_idx <- which(rownames(summ) == paste0("b_", param_clean))
     if (length(row_idx) == 0) stop(paste("Parameter", param, "not found in model summary"))
     vals <- as.numeric(summ[row_idx, ])
@@ -334,7 +336,7 @@ get_stats = function(model, param, family=NULL, add_posterior = TRUE) {
     # vals: mean, est.error, l-95%, u-95%, Rhat, Bulk_ESS, Tail_ESS
     if (add_posterior) {
       # Use modern posterior extraction method
-      posterior_draws <- as_draws_df(model)
+      posterior_draws <- model$posterior_draws_unstd 
       param_col <- paste0("b_", param_clean)
       
       if (param_col %in% names(posterior_draws)) {
@@ -400,12 +402,12 @@ get_stats = function(model, param, family=NULL, add_posterior = TRUE) {
 
 get_fixef <- function(model) {
     # Get posterior summary for all fixed effects
-    summ <- as.data.frame(posterior_summary(model))
+    summ <- model$posterior_summary_unstd
     # Only keep fixed effects (start with "b_")
     fe_idx <- grep("^b_", rownames(summ))
     fe_names <- gsub("^b_", "", rownames(summ)[fe_idx])
     # Get posterior draws
-    draws <- as_draws_df(model)
+    draws <- model$posterior_draws_unstd 
     out <- round(summ[fe_idx, c("Estimate", "Est.Error", "Q2.5", "Q97.5")], 3)
     rownames(out) <- fe_names
     # Compute two-sided Bayesian p-value for each parameter
@@ -435,8 +437,8 @@ fitmodel = function(ff,
           chains = NCHAINS,
           iter = BRMS_ITER,
           warmup = BRMS_WARMUP,
-          set_priors = T, 
-          thin = 1,
+          set_priors = TRUE, 
+          thin = 2,
           seed = 13)
 {
   print("============")
@@ -459,7 +461,7 @@ fitmodel = function(ff,
   if (set_priors){
   # Extract predictor variable names from formula
   # Remove random effects from formula before extracting terms
-  ff_formula_str <- as.character(ff)
+  ff_formula_str <- deparse1(ff_formula)
   # Remove everything after the last "+ (" (including "+ (")
   # Remove random effects terms like (1|group) from formula string
   ff_formula_str_clean <- gsub("\\([^\\)]*\\|[^\\)]*\\)", "", ff_formula_str)
@@ -486,6 +488,9 @@ fitmodel = function(ff,
     stop(paste("Dependent variable", dep_var, "not found in data"))
   }
 
+  std_info[[dep_var]] <- list(mean = 0, sd = 1)
+  print(sprintf("Standardizing dependent variable: %s", dep_var))
+  
   if (is.null(family) || family != "binomial") {
     # Check if the column contains valid numeric data
     if (!is.numeric(data.sub[[dep_var]]) || all(is.na(data.sub[[dep_var]]))) {
@@ -505,13 +510,17 @@ fitmodel = function(ff,
       std_info[[dep_var]] <- list(mean = mu_y, sd = sd_y)
     }
   }
+  #browser()
   # Standardize predictors
   for (v in pred_vars_main) {
     if (is.numeric(data.sub[[v]])) {
-      message(sprintf("Standardizing variable: %s", v))
+      print(sprintf("Standardizing variable: %s", v))
       mu <- mean(data.sub[[v]], na.rm = TRUE)
       sigma <- sd(data.sub[[v]], na.rm = TRUE)
       data.sub.std[[v]] <- (data.sub[[v]] - mu) / sigma
+      if (grepl("centered", v)) {
+        data.sub.std[[v]] <- data.sub.std[[v]] + mu
+      } 
       std_info[[v]] <- list(mean = mu, sd = sigma)
     }
   }
@@ -528,7 +537,7 @@ fitmodel = function(ff,
   #} else {
   #  priors <- c(priors, set_prior("normal(0, 5)", class = "Intercept"))
   #}
-
+  #browser()
   model <- brm(
     formula = ff_formula,
     data = data.sub.std,
@@ -540,30 +549,73 @@ fitmodel = function(ff,
     warmup = warmup,
     thin = thin,
     seed = seed,
-    control = list(adapt_delta = 0.95),
-    sample_prior = "yes"
+    control = list(adapt_delta = ADAPT_DELTA), #, max_treedepth = 12),
+    sample_prior = "yes",
+#    save_pars = save_pars(all = FALSE, group = F),
+    algorithm = ALGORITHM
+    
   )
-  # Unstandardize fixed effects estimates
-#  fixef_raw <- fixef(model)
-#  fixef_unstd <- fixef_raw
-#  for (v in pred_vars_main) {
-#    if (!is.null(std_info[[v]])) {
-#      fixef_unstd[v, "Estimate"] <- fixef_raw[v, "Estimate"] * std_info[[dep_var]]$sd / std_info[[v]]$sd
-#      fixef_unstd[v, "Q2.5"] <- fixef_raw[v, "Q2.5"] * std_info[[dep_var]]$sd / std_info[[v]]$sd
-#      fixef_unstd[v, "Q97.5"] <- fixef_raw[v, "Q97.5"] * std_info[[dep_var]]$sd / std_info[[v]]$sd
-#    }
-#  }
-  # Unstandardize intercept
-#  fixef_unstd["Intercept", "Estimate"] <- fixef_raw["Intercept", "Estimate"] * std_info[[dep_var]]$sd + std_info[[dep_var]]$mean
-#  fixef_unstd["Intercept", "Q2.5"] <- fixef_raw["Intercept", "Q2.5"] * std_info[[dep_var]]$sd + std_info[[dep_var]]$mean
-#  fixef_unstd["Intercept", "Q97.5"] <- fixef_raw["Intercept", "Q97.5"] * std_info[[dep_var]]$sd + std_info[[dep_var]]$mean
 
-#  model$fixef_unstd <- fixef_unstd
+  # Unstandardize posterior draws and summary for fixed effects
+  unstd_draws <- as_draws_df(model)
+  unstd_summary <- as.data.frame(posterior_summary(model))
+  #browser()
+
+  # Unstandardize main effects
+  for (v in pred_vars_main) {
+    
+    if (!is.null(std_info[[v]])) {
+      print(sprintf("Unstandardizing variable: %s", v))
+      # Unstandardize: multiply by sd_y / sd_x
+      colname <- paste0("b_", v)
+      if (colname %in% names(unstd_draws)) {
+        unstd_draws[[colname]] <- unstd_draws[[colname]] * std_info[[dep_var]]$sd / std_info[[v]]$sd
+        if (colname %in% rownames(unstd_summary)) {
+          unstd_summary[colname, c("Estimate", "Est.Error", "Q2.5", "Q97.5")] <-
+            unstd_summary[colname, c("Estimate", "Est.Error", "Q2.5", "Q97.5")] * std_info[[dep_var]]$sd / std_info[[v]]$sd
+        }
+      }
+    }
+  }
+  
+  #browser()
+  # Unstandardize interaction terms
+  interaction_terms <- grep("^b_.*:", rownames(unstd_summary), value = TRUE)
+  for (term in interaction_terms) {
+    # Extract variable names from interaction term
+    vars <- strsplit(sub("^b_", "", term), ":")[[1]]
+    
+    # Only unstandardize variables in std_info
+    vars <- intersect(vars, names(std_info))
+    if (length(vars)== 0) next
+    print(sprintf("Unstandardizing interaction: %s", term))
+    scale_factor <- std_info[[dep_var]]$sd / prod(sapply(vars, function(v) std_info[[v]]$sd))
+    if (term %in% names(unstd_draws)) {
+      unstd_draws[[term]] <- unstd_draws[[term]] * scale_factor
+    }
+    if (term %in% rownames(unstd_summary)) {
+      unstd_summary[term, c("Estimate", "Est.Error", "Q2.5", "Q97.5")] <-
+        unstd_summary[term, c("Estimate", "Est.Error", "Q2.5", "Q97.5")] * scale_factor
+    }
+  
+  }
+  # Unstandardize intercept
+  if ("b_Intercept" %in% names(unstd_draws)) {
+    unstd_draws[["b_Intercept"]] <- unstd_draws[["b_Intercept"]] * std_info[[dep_var]]$sd + std_info[[dep_var]]$mean
+    if ("b_Intercept" %in% rownames(unstd_summary)) {
+      unstd_summary["b_Intercept", c("Estimate", "Est.Error", "Q2.5", "Q97.5")] <-
+        unstd_summary["b_Intercept", c("Estimate", "Est.Error", "Q2.5", "Q97.5")] * std_info[[dep_var]]$sd + std_info[[dep_var]]$mean
+    }
+  }
+  model$posterior_draws_unstd <- unstd_draws
+  model$posterior_summary_unstd <- unstd_summary
+
 
   # Visualize prior vs posterior for fixed effects
+  if (ALGORITHM == "sampling"){
   prior_post_plot <- plot(model, ask = FALSE, plot = TRUE, combo = c("dens_overlay", "hist", "trace"), prior = TRUE)
   print(prior_post_plot)
-
+  }
 
   } else  {
       # Example: fit a brms model with default priors (no standardization)
@@ -577,7 +629,9 @@ fitmodel = function(ff,
         warmup = warmup,
         thin = thin,
         seed = seed,
-        sample_prior = "yes"
+        sample_prior = "yes",
+        save_pars = save_pars(all = FALSE, group = F)
+
       )
       # Visualize prior vs posterior for fixed effects
       prior_post_plot <- plot(model, ask = FALSE, plot = TRUE, combo = c("dens_overlay", "hist", "trace"), prior = TRUE)
@@ -644,131 +698,3 @@ tab_to_str = function(mytable){
 limit_mean <- function(ev.cut){
   ev = mean(as.numeric(strsplit(substr(as.character(ev.cut), 2, nchar(as.character(ev.cut)) - 1), ",")[[1]]))
 }
-
-
-############################################################################
-############################################################################
-############################################################################
-#                          DEPRECATED FUNCTIONS
-############################################################################
-############################################################################
-
-# not used
-fitmodel_deprecated = function(ff,
-                    data.sub,
-                    params,
-                    family = NULL,
-                    uselm = F)
-{
-  print("============")
-  
-  print(ff)
-  
-  if (uselm) {
-    model = lm(as.formula(ff), data = data.sub)
-  } else {
-    if (is.null(family)) {
-      model = lmer(as.formula(ff), data = data.sub)
-    } else {
-      model = glmer(as.formula(ff), data = data.sub, family = family,
-        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb'))
-        #glmerControl(optimizer ="bobyqa")
-        
-        )
-    }
-    
-  }
-  #print(summary(model))
-  for (i in seq(length(params))){
-    get_stats(model, params[i], family)
-    }
-  return(model)
-}
-get_stats_deprecated = function(model, param, family) {
-#  browser()
-  print("------------")
-  print(param)
-  vals = summary(model)$coefficients[param,]
-  #print(vals)
-  if (is.null(family)) {
-    pval = vals[5]
-    out = sprintf(
-      "b = %s, t = %s, df = %s,",
-      round(vals[1], digits = 3),
-      round(vals[4],  digits = 3),
-      round(vals[3], digits = 1)
-    )
-  } else {
-    pval = vals[4]
-    out = sprintf(
-      "b = %s, z = %s,",
-      round(vals[1], digits = 3),
-      round(vals[3],  digits = 3)
-    )
-  }
-  
-  if (pval < 1e-10) {
-    pstr = "p < 1e-10"
-  }
-  else if (pval  < 1e-3) {
-    pstr = paste("p =", formatC(pval ,  digits = 1, format = "e"))
-  }
-  else {
-    pstr = paste("p =", round(pval,  digits = 3))
-  }
-  
-  out = paste(out, pstr)
-  print(names(param))
-  statslist[names(param)] <<- out
-  print(out)
-}
-
-fitmodel_default_priors = function(ff,
-          data.sub,
-          params = NULL,
-          family = NULL,
-          uselmer = FALSE,
-          cores = NCORES,
-          chains = NCHAINS,
-          iter = BRMS_ITER,
-          warmup = BRMS_WARMUP,
-          thin = 1,
-          seed = 13)
-{
-  print("============")
-  print(ff)
-  
-  if (uselmer){
-      model = glmer(as.formula(ff), data = data.sub, family = family,
-        control = glmerControl(optimizer ='optimx', optCtrl=list(method='nlminb')))    
-  } else{
-  
-  family_ <- family
-  if (is.null(family)) {
-      family_ <- gaussian()
-  } else if (family == "binomial") {
-      family_ <- bernoulli(link = "logit")
-  }
-
-  model = brm(
-    formula = as.formula(ff),
-    data = data.sub,
-    family = family_,
-    cores = cores,
-    chains = chains,
-    iter = iter,
-    warmup = warmup,
-    thin = thin,
-    seed = seed,
-    sample_prior = "yes"
-  )
-  }
-
-  if (!is.null(params)) {
-    for (i in seq_along(params)) {
-      get_stats(model, params[i], family)
-    }
-  }
-  return(model)
-}
-

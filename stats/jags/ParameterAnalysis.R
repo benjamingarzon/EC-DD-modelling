@@ -144,8 +144,9 @@ for (parameter in parameters) {
   names(tests) = c(sprintf("_%s_context_", parameter),
                    sprintf("_%s_groupxcontext_", parameter))
 
+#  %s ~  Group * Context + (1 + Group * Context|subjID)
 # %s ~ Group * Context + (1 |subjID)  
-  model = fitmodel(sprintf("%s ~ Group * Context + (1 + Group * Context|subjID)", parameter),
+  model = fitmodel(sprintf("%s ~ Group * Context + (1|subjID)", parameter),
                    allIndPars.good,
                    tests)
   
@@ -155,7 +156,7 @@ for (parameter in parameters) {
 #  mm = model.matrix(model)
 #  allIndPars.good[parameter] = allIndPars.good[parameter] - cc.main *
 #    mm[, "GroupLow vol. first:ContextLow volatility"]
-  cc.main = fixef(model)["GroupLowvol.first:ContextLowvolatility", "Estimate"]
+  cc.main = get_fixef(model)["GroupLowvol.first:ContextLowvolatility", "Estimate"]
   parameter_pred = paste(parameter, 'pred', sep = '.')
   allIndPars.good[parameter] = allIndPars.good[parameter] - cc.main *
     mm[, "GroupLowvol.first:ContextLowvolatility"]

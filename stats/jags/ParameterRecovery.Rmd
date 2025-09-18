@@ -20,7 +20,7 @@ PARSFILE = '../results/linear_drift_no_pooling_ddm-processed_data_balanced_censo
 
 OUTPUTFILE = 'processed_data_balanced_censored-simulated.RData'
 load(PARSFILE)
-load(file.path(WDD, "processed_data_balanced_censored.RData"))
+load(file.path(WDD, 'processed_data_balanced_censored.RData'))
 
 ```
 
@@ -278,7 +278,7 @@ save(choicedata.common, file=file.path(WDD, OUTPUTFILE))
 ```{r}
 source("../analysis_funcs.R")
 
-SIMPARSFILE = '../results/linear_drift_no_pooling_ddm-processed_data_censored-simulated-14-06-2024_16:58-10000-50000-jags-pars.RData'
+SIMPARSFILE = '../results/linear_drift_no_pooling_ddm-processed_data_balanced_censored-simulated-10-09-2025_06:29-20000-50000-jags-pars.RData'
 
 load(SIMPARSFILE)
 
@@ -376,7 +376,7 @@ main.mat <- data.frame(main.mat[, -2])
 library(runjags)
 ```
 
-```{r message=F, echo=F, results'hide'}
+```{r message=F, echo=F, results='hide'}
 
 choicedata.common <- choicedata.common_orig
 

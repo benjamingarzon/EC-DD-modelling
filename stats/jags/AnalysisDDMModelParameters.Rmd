@@ -10,6 +10,7 @@ output: html_document
 rm(list = ls())
 
 source("../analysis_funcs.R")
+unixtools::set.tempdir("~/ddm/EC-DD-modelling/stats/tmp1")
 
 WD = '../../data'
 WDD = file.path(WD, 'experiment')
@@ -62,7 +63,9 @@ choicedata.common = choicedata.common %>% mutate(
   log_rt = log(rt)
 )
 
-ratingdata.sub = ratingdata.sub %>% mutate(
+ratingdata.sub = ratingdata.sub %>% 
+  mutate(  key.rt.orig = key.rt) %>%
+  mutate(
   Context = ifelse(context == 'c1', 'High volatility', 'Low volatility'),
   Context_order = ifelse(context_order == 1, 'First context', 'Second context'),
   Group =  ifelse(
@@ -72,9 +75,14 @@ ratingdata.sub = ratingdata.sub %>% mutate(
     'High vol. first',
     'Low vol. first'
   ),
-  log_key.rt = log(key.rt)
+  key.rt = bid.rt.max,
+  log_key.rt = log(bid.rt.max)
 
 )
+
+# use last slider response time
+
+
 #ratingdata.sub = ratingdata.sub %>% arrange(subjID, key.rt) %>% group_by(subjID, Context, Context_order, Group) %>% mutate(key.rt = key.rt - lag(key.rt), key.rt.orig = key.rt) 
 
 
@@ -295,7 +303,7 @@ save.image(file = paste0(IMAGE_FILE, "_1.RData"))
 ```{r Differences}
 
 rating_par_names = c("bid.diff" = "WTP range",
-                     "key.rt" = "WTP response time",
+                     "log_key.rt" = "(log) WTP response time",
                      "bid.rt.max" = "Max response time")
 choice_par_names = c(
   "b.drift.intercept.p" = "Drift intercept",
@@ -312,14 +320,14 @@ ratingdata.high <- ratingdata %>%
 ratingdata.low <- ratingdata %>% 
   filter(context == 'c2')
 
-cols <- c("subjID", "ev", "amount_later", "b.drift.intercept.p", "key.rt",
+cols <- c("subjID", "ev", "amount_later_centered", "b.drift.intercept.p", "log_key.rt",
   "b.drift.amount.p", "bias.p", "nondectime.p", "noise.p", "bid.diff", "Group")
 
-ratingdata.all <- merge(ratingdata.high[cols], ratingdata.low[cols], by = c('subjID', 'ev', 'amount_later'), suffix = c('.high', '.low')) 
+ratingdata.all <- merge(ratingdata.high[cols], ratingdata.low[cols], by = c('subjID', 'ev', 'amount_later_centered'), suffix = c('.high', '.low')) 
 
 # compute differences high vs low
 ratingdata.all <- ratingdata.all %>% mutate(
-  key.rt = key.rt.high - key.rt.low, bid.diff = bid.diff.high - bid.diff.low, 
+  log_key.rt = log_key.rt.high - log_key.rt.low, bid.diff = bid.diff.high - bid.diff.low, 
   b.drift.amount.p = b.drift.amount.p.high - b.drift.amount.p.low,
   b.drift.intercept.p = b.drift.intercept.p.high - b.drift.intercept.p.low,
   nondectime.p = nondectime.p.high - nondectime.p.low,
@@ -327,7 +335,7 @@ ratingdata.all <- ratingdata.all %>% mutate(
   bias.p = bias.p.high - bias.p.low
   ) %>% mutate(Group = Group.low)
 
-mypars.rating = c("bid.diff", "key.rt") # , "bid.rt.max")
+mypars.rating = c("bid.diff", "log_key.rt") # , "bid.rt.max")
 
 main.mat = inter.mat =  NULL
 # for (mypar.rating in mypars.rating) {
@@ -359,14 +367,13 @@ myformula <- as.formula(
   sprintf(
     #"%s ~ scale(%s)*scale(amount_later) + (1| subjID)",
     #"%s ~ scale(%s)*scale(amount_later) + (1 + scale(%s)*scale(amount_later)| subjID)",
-    "%s ~ %s*amount_later + (1 + %s*amount_later| subjID)",
+    "%s ~ %s*amount_later_centered + (1 + amount_later_centered| subjID)",
     mypar.rating,
-    mypar, 
     mypar
   )
 )
 
-pars <- c(mypar, sprintf("%s:amount_later", mypar))
+pars <- c(mypar, sprintf("%s:amount_later_centered", mypar))
 names(pars) <- c(sprintf("_diff_%s_%s_%s_main_", mypar.rating, mypar, co), sprintf("_diff_%s_%s_%s_inter_", mypar.rating, mypar, co))
 model <- fitmodel(myformula, ratingdata.all %>% filter(Group == co), pars)
 
@@ -378,7 +385,7 @@ fe_summary <- get_fixef(model)
 #ss.1 <- fe_summary[sprintf("scale%s", mypar), c("Estimate", "Est.Error", "Q2.5", "Q97.5")]
 #ss.2 <- fe_summary[sprintf("scale%s:scaleamount_later", mypar), c("Estimate", "Est.Error", "Q2.5", "Q97.5")]
 ss.1 <- fe_summary[mypar, ] #c("Estimate", "Est.Error", "Q2.5", "Q97.5")]
-ss.2 <- fe_summary[sprintf("%s:amount_later", mypar), ] #c("Estimate", "Est.Error", "Q2.5", "Q97.5")]
+ss.2 <- fe_summary[sprintf("%s:amount_later_centered", mypar), ] #c("Estimate", "Est.Error", "Q2.5", "Q97.5")]
 main.mat <- rbind(main.mat, c(mypar.rating, mypar, co, ss.1))
 inter.mat <- rbind(inter.mat, c(mypar.rating, mypar, co, ss.2))
 }
@@ -460,7 +467,7 @@ save.image(file = paste0(IMAGE_FILE, "_2.RData"))
 
 ```{r Slopes vs parameters}
 rating_par_names = c("bid.diff" = "WTP range",
-                     "key.rt" = "WTP response time",
+                     "log_key.rt" = "(log) WTP response time",
                      "bid.rt.max" = "Max response time")
 choice_par_names = c(
   "b.drift.intercept.p" = "Drift intercept",
@@ -475,7 +482,7 @@ myplots.list = list()
 j = 1
 main.mat = inter.mat = NULL
 #*Group*Context
-mypars.rating = c("bid.diff", "key.rt") # , "bid.rt.max")
+mypars.rating = c("bid.diff", "log_key.rt") # , "bid.rt.max")
 for (mypar.rating in mypars.rating) {
   for (mypar in mypars) {
     for (co in c(1, 2)) {
@@ -483,9 +490,8 @@ for (mypar.rating in mypars.rating) {
         sprintf(
 #          "%s ~ scale(%s)*scale(amount_later) + (1| subjID)",
 #          "%s ~ scale(%s)*scale(amount_later) + (1 + scale(%s)*scale(amount_later)| subjID)",
-          "%s ~ %s*amount_later + (1 + %s*amount_later| subjID)",
+          "%s ~ %s*amount_later_centered + (1 + amount_later_centered| subjID)",
           mypar.rating,
-          mypar,
           mypar
         )
       )
@@ -500,8 +506,8 @@ for (mypar.rating in mypars.rating) {
 
       #model <- fitmodel(myformula, ratingdata %>% filter(context_order == co))
 
-      pars <- c(mypar, sprintf("%s:amount_later", mypar))
-      names(pars) <- c(sprintf("_diff_%s_%s_%s_main_", mypar.rating, mypar, co), sprintf("_diff_%s_%s_%s_inter_", mypar.rating, mypar, co))
+      pars <- c(mypar, sprintf("%s:amount_later_centered", mypar))
+      names(pars) <- c(sprintf("_range_%s_%s_%s_main_", mypar.rating, mypar, co), sprintf("_range_%s_%s_%s_inter_", mypar.rating, mypar, co))
       model <- fitmodel(myformula, ratingdata %>% filter(context_order == co), pars)
 
       ss <- summary(model)
@@ -513,7 +519,7 @@ for (mypar.rating in mypars.rating) {
       #ss.1 <- fe_summary[sprintf("scale%s", mypar), c("Estimate", "Est.Error", "Q2.5", "Q97.5")]
       #ss.2 <- fe_summary[sprintf("scale%s:scaleamount_later", mypar), c("Estimate", "Est.Error", "Q2.5", "Q97.5")]
       ss.1 <- fe_summary[mypar, ] #c("Estimate", "Est.Error", "Q2.5", "Q97.5")]
-      ss.2 <- fe_summary[sprintf("%s:amount_later", mypar), ] #c("Estimate", "Est.Error", "Q2.5", "Q97.5")]
+      ss.2 <- fe_summary[sprintf("%s:amount_later_centered", mypar), ] #c("Estimate", "Est.Error", "Q2.5", "Q97.5")]
       main.mat <- rbind(main.mat, c(mypar.rating, mypar, co, ss.1))
       inter.mat <- rbind(inter.mat, c(mypar.rating, mypar, co, ss.2))
 

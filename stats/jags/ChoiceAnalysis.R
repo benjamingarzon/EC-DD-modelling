@@ -118,7 +118,7 @@ print(summary(model))
 library(posterior)
 
 # Extract draws as a data frame
-draws_df <- as_draws_df(model)
+draws_df <- model$posterior_draws_unstd
 
 draws_df[, c(5)] <- 0
 
