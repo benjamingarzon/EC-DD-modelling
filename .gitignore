@@ -1,3 +1,6 @@
-nohup.out
+nohup*.out
 *.html
 MediationDAG.R
+stats/jags/AnalysisDDMModelParameters_files
+stats/jags/test.Rmd
+stats/tmp*
