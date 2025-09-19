@@ -113,7 +113,7 @@ print(summary(model))
 #colnames(mm) <- gsub(" ", "", colnames(mm))
 
 model = fitmodel(
-  "bid.diff ~ Group*Context*amount_later_centered + (1|subjID)",
+  "bid.diff ~ Group*Context*amount_later_centered + (1 + Group*Context*amount_later_centered|subjID)",
   ratingdata,
   c(
     "_Rating_context_" = "ContextLow volatility",

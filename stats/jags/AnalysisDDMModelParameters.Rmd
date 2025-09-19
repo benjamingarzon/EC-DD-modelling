@@ -463,7 +463,7 @@ source("./RatingRTanalysis.R")
 save.image(file = paste0(IMAGE_FILE, "_2.RData"))
 ```
 
-# Random slopes of ratings vs DDM parameters
+# Rating parameters vs DDM parameters
 
 ```{r Slopes vs parameters}
 rating_par_names = c("bid.diff" = "WTP range",
@@ -481,6 +481,9 @@ choice_par_names = c(
 myplots.list = list()
 j = 1
 main.mat = inter.mat = NULL
+
+ratingdata.subj = ratingdata %>% group_by(subjID, Context, Context_order) %>% summarise_at(c(mypars, mypars.rating), .funs = 'mean')
+
 #*Group*Context
 mypars.rating = c("bid.diff", "log_key.rt") # , "bid.rt.max")
 for (mypar.rating in mypars.rating) {
@@ -508,7 +511,11 @@ for (mypar.rating in mypars.rating) {
 
       pars <- c(mypar, sprintf("%s:amount_later_centered", mypar))
       names(pars) <- c(sprintf("_range_%s_%s_%s_main_", mypar.rating, mypar, co), sprintf("_range_%s_%s_%s_inter_", mypar.rating, mypar, co))
-      model <- fitmodel(myformula, ratingdata %>% filter(context_order == co), pars)
+      if (mypar == "nondectime.p"){
+        model <- fitmodel(myformula, ratingdata %>% filter(context_order == co & nondectime.p < 2), pars)
+      } else {
+        model <- fitmodel(myformula, ratingdata %>% filter(context_order == co), pars)
+      }
 
       ss <- summary(model)
       print(myformula)
@@ -526,9 +533,14 @@ for (mypar.rating in mypars.rating) {
 
   }
     
-    ratingdata.subj = ratingdata %>% group_by(subjID, Context, Context_order) %>% summarise_at(c(mypars, mypars.rating), .funs = 'mean')
-    
-    myplot.rating.pars = ggplot(data = ratingdata.subj,
+    if (mypar == "nondectime.p"){
+        ratingdata.subj_ <- ratingdata.subj %>% filter(nondectime.p < 2)
+        
+    } else {
+        ratingdata.subj_ <- ratingdata.subj
+    }
+
+    myplot.rating.pars = ggplot(data = ratingdata.subj_,
                                 aes_string(
                                   y = mypar.rating,
                                   x = mypar,
@@ -537,7 +549,6 @@ for (mypar.rating in mypars.rating) {
                                 )) +
       #  geom_line(linewidth = 0.5, alpha = 0.4) +
       #  geom_point(size = 0.5, alpha = 0.4) +
-      geom_line() +
       geom_point() +
       xlab(choice_par_names[mypar]) +
       ylab(rating_par_names[mypar.rating]) + facet_grid(. ~ Context_order)
@@ -755,7 +766,7 @@ ggsave(
 )
 
 fig.d = ggarrange(plotlist = myplots.list,
-                  ncol = 6,
+                  ncol = 5,
                   nrow = 2)
 
 ggsave(
@@ -765,6 +776,23 @@ ggsave(
   width = WIDTH1COL * 5,
   height = HEIGHT1ROW * 2
 )
+
+mytheme = theme_classic(base_size = 11) + theme(legend.position = 'bottom', legend.title = element_blank())
+theme_set(mytheme)
+
+
+fig.e = ggarrange(plotlist = myplots.list[c(7, 10)],
+                  ncol = 1,
+                  nrow = 2)
+
+ggsave(
+  filename = file.path(FIGS_DIR, "SigAssociations.png"),
+  plot = fig.e,
+  dpi = DPI,
+  width = WIDTH1COL * 2,
+  height = HEIGHT1ROW * 2
+)
+
 
 ggsave(
   filename = file.path(FIGS_DIR, "ParameterCorrelations.png"),
