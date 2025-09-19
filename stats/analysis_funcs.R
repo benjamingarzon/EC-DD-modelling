@@ -12,10 +12,15 @@ library(ggh4x)
 library(pracma)
 library(brms)
 library(posterior)
+
+tmpdir <- tempfile(pattern="Rtmp", tmpdir = "~/ddm/EC-DD-modelling/stats/tmp")
+dir.create(tmpdir)
+unixtools::set.tempdir(tmpdir)
+
 conversion_rate = 6 / 8 # USD to GBP
 base_rate = 6
-BRMS_ITER = 6000 #4000 # 8000 
-BRMS_WARMUP = 3000 #2000 # 4000 
+BRMS_ITER = 6000 #6000 # 8000 
+BRMS_WARMUP = 3000 #3000 # 4000 
 NCHAINS = 10
 NCORES = 10
 ALGORITHM = "sampling" # meanfield
@@ -563,42 +568,54 @@ fitmodel = function(ff,
 
   # Unstandardize main effects
   for (v in pred_vars_main) {
+    # Unstandardize: multiply by sd_y / sd_x
+    #browser()
+    colname <- paste0("b_", v)
+    # If colname matches the beginning of any column in unstd_draws (e.g., for categorical predictors)
+    main_effects <- names(unstd_draws)[!grepl(":", names(unstd_draws))]
+    col_matches <- grep(paste0("^", colname), main_effects, value = TRUE)
+    colname <- col_matches
+    print(sprintf("Unstandardizing main effect: %s", colname))
+    unstd_draws[[colname]] <- unstd_draws[[colname]] * std_info[[dep_var]]$sd 
+    
+    unstd_summary[colname, c("Estimate", "Est.Error", "Q2.5", "Q97.5")] <-
+      unstd_summary[colname, c("Estimate", "Est.Error", "Q2.5", "Q97.5")] * std_info[[dep_var]]$sd 
     
     if (!is.null(std_info[[v]])) {
-      print(sprintf("Unstandardizing variable: %s", v))
-      # Unstandardize: multiply by sd_y / sd_x
-      colname <- paste0("b_", v)
-      if (colname %in% names(unstd_draws)) {
-        unstd_draws[[colname]] <- unstd_draws[[colname]] * std_info[[dep_var]]$sd / std_info[[v]]$sd
-        if (colname %in% rownames(unstd_summary)) {
-          unstd_summary[colname, c("Estimate", "Est.Error", "Q2.5", "Q97.5")] <-
-            unstd_summary[colname, c("Estimate", "Est.Error", "Q2.5", "Q97.5")] * std_info[[dep_var]]$sd / std_info[[v]]$sd
-        }
-      }
+        unstd_draws[[colname]] <- unstd_draws[[colname]]  / std_info[[v]]$sd
+        unstd_summary[colname, c("Estimate", "Est.Error", "Q2.5", "Q97.5")] <-
+            unstd_summary[colname, c("Estimate", "Est.Error", "Q2.5", "Q97.5")] / std_info[[v]]$sd
     }
   }
+    
+  
   
   #browser()
   # Unstandardize interaction terms
   interaction_terms <- grep("^b_.*:", rownames(unstd_summary), value = TRUE)
   for (term in interaction_terms) {
+    print(sprintf("Unstandardizing interaction: %s", term))
+    
+    unstd_draws[[term]] <- unstd_draws[[term]] * std_info[[dep_var]]$sd
+    unstd_summary[term, c("Estimate", "Est.Error", "Q2.5", "Q97.5")] <-
+      unstd_summary[term, c("Estimate", "Est.Error", "Q2.5", "Q97.5")] * std_info[[dep_var]]$sd
+    
     # Extract variable names from interaction term
     vars <- strsplit(sub("^b_", "", term), ":")[[1]]
     
     # Only unstandardize variables in std_info
     vars <- intersect(vars, names(std_info))
     if (length(vars)== 0) next
-    print(sprintf("Unstandardizing interaction: %s", term))
-    scale_factor <- std_info[[dep_var]]$sd / prod(sapply(vars, function(v) std_info[[v]]$sd))
+    
+    scale_factor <- 1 / prod(sapply(vars, function(v) std_info[[v]]$sd))
     if (term %in% names(unstd_draws)) {
       unstd_draws[[term]] <- unstd_draws[[term]] * scale_factor
-    }
-    if (term %in% rownames(unstd_summary)) {
       unstd_summary[term, c("Estimate", "Est.Error", "Q2.5", "Q97.5")] <-
         unstd_summary[term, c("Estimate", "Est.Error", "Q2.5", "Q97.5")] * scale_factor
     }
   
   }
+  
   # Unstandardize intercept
   if ("b_Intercept" %in% names(unstd_draws)) {
     unstd_draws[["b_Intercept"]] <- unstd_draws[["b_Intercept"]] * std_info[[dep_var]]$sd + std_info[[dep_var]]$mean

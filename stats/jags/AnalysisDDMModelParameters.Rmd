@@ -8,9 +8,7 @@ output: html_document
 ```{r}
 # detach("package:plotly", unload=TRUE)
 rm(list = ls())
-
 source("../analysis_funcs.R")
-unixtools::set.tempdir("~/ddm/EC-DD-modelling/stats/tmp1")
 
 WD = '../../data'
 WDD = file.path(WD, 'experiment')
