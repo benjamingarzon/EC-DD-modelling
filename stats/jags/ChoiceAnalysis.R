@@ -103,7 +103,7 @@ model = fitmodel(
 
 model.choice2 = model
 # model = fitmodel(
-#   "choice ~ Group + Context + amount_later_centered + Group:Context + Context:amount_later_centered  + background_col + (1|subjID)",
+#   "choice ~ Group + Context + amount_later_centered + Group:Context + Context:amount_later_centered  + (1|subjID)",
 #   choicedata,
 #   c(
 #     "_choice_context_" = "ContextLow volatility",

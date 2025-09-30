@@ -538,18 +538,21 @@ for (mypar.rating in mypars.rating) {
         ratingdata.subj_ <- ratingdata.subj
     }
 
+    # Create plot with regression lines and correlations for each Context_order
+
     myplot.rating.pars = ggplot(data = ratingdata.subj_,
-                                aes_string(
-                                  y = mypar.rating,
-                                  x = mypar,
-                                  color = 'Context',
-                                  group = 'subjID'
-                                )) +
-      #  geom_line(linewidth = 0.5, alpha = 0.4) +
-      #  geom_point(size = 0.5, alpha = 0.4) +
-      geom_point() +
-      xlab(choice_par_names[mypar]) +
-      ylab(rating_par_names[mypar.rating]) + facet_grid(. ~ Context_order)
+    aes_string(
+      y = mypar.rating,
+      x = mypar,
+      color = 'Context',
+      group = 'subjID'
+    )) +
+    geom_point() +
+    stat_cor(aes(group = 1), show.legend = FALSE, label.x.npc = 0.5, label.y.npc = "top") + # Correlation in upper right of each facet
+    geom_smooth(method = "lm", se = T, aes(group = 1)) +
+    facet_grid(. ~ Context_order) +
+    xlab(choice_par_names[mypar]) +
+    ylab(rating_par_names[mypar.rating])
     print(myplot.rating.pars)
     myplots.list[[j]]  = myplot.rating.pars
     j = j + 1
@@ -567,7 +570,7 @@ inter.mat <- add_ci_column(inter.mat)
 
 colnames(main.mat) = colnames(inter.mat) = c("WTP parameter",
                                              "DDM parameter",
-                                             "Group",
+                                             "Context order",
                                              "Estimate",
                                              "Est.Error", 
                                              "95% CI"
@@ -643,7 +646,7 @@ print(myplot.pairs)
 
 ```
 
-
+# Make figures
 
 ```{r Make figs}
 
@@ -779,16 +782,16 @@ mytheme = theme_classic(base_size = 11) + theme(legend.position = 'bottom', lege
 theme_set(mytheme)
 
 
-fig.e = ggarrange(plotlist = myplots.list[c(7, 10)],
+fig.e = ggarrange(plotlist = myplots.list[c(2, 7, 9, 10)],
                   ncol = 1,
-                  nrow = 2)
+                  nrow = 4)
 
 ggsave(
-  filename = file.path(FIGS_DIR, "SigAssociations.png"),
+  filename = file.path(FIGS_DIR, "SigAssociationsVert.png"),
   plot = fig.e,
   dpi = DPI,
   width = WIDTH1COL * 2,
-  height = HEIGHT1ROW * 2
+  height = HEIGHT1ROW * 4
 )
 
 
@@ -843,6 +846,7 @@ reg_labels = c(
   "GroupLowvol.first"= "Group (low volatility first)",
   "ContextLowvolatility"= "Context (low volatility)",                            
   "amount_later_centered" = "Later reward (centered)", 
+  "amount_later_centered.1" = "Later reward (centered)", 
   "amount_later_centered.2" = "Later reward (centered) squared", 
   "background_colpurple" = "Background color (purple)",
   "background_colteal" = "Background color (teal)",
@@ -852,7 +856,7 @@ reg_labels = c(
   "ContextLowvolatility:amount_later_centered" = "Context (low volatility) x later reward (centered)",
   "GroupLowvol.first:ContextLowvolatility:amount_later_centered" = "Group (low volatility first) x later reward (centered)",
   "ChoiceLateroption"= "Choice (later option)",
-  "ChoiceLateroption:amount_later_centered" = "Choice (later option) x later reward (centered)",
+  "ChoiceLateroption:amount_later_centered.1" = "Choice (later option) x later reward (centered)",
   "ChoiceLateroption:amount_later_centered.2" = "Choice (later option) x later reward (centered) squared"
 )
 

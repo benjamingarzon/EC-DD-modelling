@@ -185,6 +185,7 @@ myplot = ggplot(data = choicedata, aes(
   ylab('Response time (s)') + ylim(-5, 5)
 
 #print(myplot)
+choicedata$amount_later_centered.1 = choicedata$amount_later_centered
 choicedata$amount_later_centered.2 = choicedata$amount_later_centered ^ 2
 
 # without order correction
@@ -208,7 +209,7 @@ model = fitmodel(
 )
 
 #cc = fixef(model)["GroupLow vol. first:ContextLow volatility"]
-cc = fixef(model)["GroupLowvol.first:ContextLowvolatility", "Estimate"]
+cc = get_fixef(model)["GroupLowvol.first:ContextLowvolatility", "Estimate"]
 mm <- model.matrix(as.formula("log_rt ~ Group*Context"), data = choicedata)
 
 #rt.fixef = coef(summary(model))
@@ -218,7 +219,7 @@ choicedata$rt.pred = exp(log(choicedata$rt) - cc * mm[, "GroupLow vol. first:Con
 
 
 model = fitmodel(
-  "log_rt ~ Group*Context + Choice*(amount_later_centered + amount_later_centered.2) + (1+Group*Context + Choice*(amount_later_centered + amount_later_centered.2)|subjID)",
+  "log_rt ~ Group*Context + Choice*amount_later_centered.1 + Choice*amount_later_centered.2 + (1 + Group*Context + Choice*amount_later_centered.1 + Choice*amount_later_centered.2|subjID)",
   choicedata,
   c(
     "_RT_contextCORchoicexamount_" = "ContextLow volatility",
@@ -227,7 +228,7 @@ model = fitmodel(
   
 )
 
-rt.cor.fixef = fixef(model) #coef(summary(model))
+rt.cor.fixef = get_fixef(model) #coef(summary(model))
 
 choicedata.median = choicedata %>%
   group_by(subjID,
