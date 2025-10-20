@@ -7,11 +7,21 @@ ratingdata.sub = ratingdata.sub %>%
   mutate(bid.rt.second = bid.rt.max - bid.rt.min,
          bid.rt.first = bid.rt.min)
 
+ratingdata.sub = ratingdata.sub %>% group_by(subjID) %>% mutate(bid.diff.residuals = lm(bid.diff ~ amount_later)$residuals)
+
 #remove outliers
-ratingdata.sub = ratingdata.sub %>% group_by(amount_later) %>% mutate(bid.diff.outlier = markoutliersIQR(log(bid.diff)),
-                                                                      bid.rt.outlier = markoutliersIQR(log(bid.rt.max)))
-ratingdata.sub.clean = subset(ratingdata.sub, bid.diff.outlier == F &
-                                bid.rt.outlier == F)
+#ratingdata.sub = ratingdata.sub %>% group_by(amount_later) %>% mutate(bid.diff.outlier = markoutliersIQR(log(bid.diff)),
+#                                                                      bid.rt.outlier = markoutliersIQR(log(bid.rt.max)))
+
+
+#remove outliers
+ratingdata.sub = ratingdata.sub %>% group_by(amount_later) %>% mutate(
+  bid.diff.outlier = markoutliersIQR(bid.diff.residuals),# markoutliersIQR(log(bid.diff)),
+  bid.rt.outlier = markoutliersIQR(log(bid.rt.max)))
+
+
+ratingdata.sub.clean = subset(ratingdata.sub, bid.rt.outlier == F) #& bid.diff.outlier == F 
+                                
 
 
 ratingdata = merge(

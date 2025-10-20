@@ -17,19 +17,19 @@ theme_set(mytheme)
 # Load previous fit
 #MYFILE = '../results/linear_drift_no_pooling_corr_ddm-processed_data_censored-27-12-2023_07:59-10000-50000-jags-pars.RData'
 #MYFILE = '../results/linear_drift_no_pooling_bd_ddm-processed_data_censored-27-12-2023_20:07-10000-50000-jags-pars.RData'
-init100 = F #params$init100 == 'true'
-if (init100) {
-  MYFILE = '../results/linear_drift_no_pooling_ddm-processed_data_balanced_censored_100-08-08-2025_07:15-20000-50000-jags-pars.RData'
-load(MYFILE)
-load(file.path(WDD, "processed_data_balanced_censored_100.RData"))
-IMAGE_FILE = file.path("../results/AnalysisDDMModelParameters_workspace_100")
-
-} else {
+#init100 = F #params$init100 == 'true'
+# if (init100) {
+#   MYFILE = '../results/linear_drift_no_pooling_ddm-processed_data_balanced_censored_100-08-08-2025_07:15-20000-50000-jags-pars.RData'
+# load(MYFILE)
+# load(file.path(WDD, "processed_data_balanced_censored_100.RData"))
+# IMAGE_FILE = file.path("../results/AnalysisDDMModelParameters_workspace_100")
+# 
+# } else {
   MYFILE = '../results/linear_drift_no_pooling_ddm-processed_data_balanced_censored-08-08-2025_14:53-20000-50000-jags-pars.RData'
 load(MYFILE)
 load(file.path(WDD, "processed_data_balanced_censored.RData"))
 IMAGE_FILE = file.path("../results/AnalysisDDMModelParameters_workspace")
-}
+#}
 
 numSubjs = dataList$N
 
@@ -286,14 +286,17 @@ save.image(file = paste0(IMAGE_FILE, "_0.RData"))
 source('./ChoiceAnalysis.R')
 ```
 
+```{r Save all 1}
+save.image(file = paste0(IMAGE_FILE, "_1.RData"))
+```
 
 # Analyze ratings
 ```{r Rating analysis}
 source('./RatingAnalysis.R')
 ```
 
-```{r Save all 1}
-save.image(file = paste0(IMAGE_FILE, "_1.RData"))
+```{r Save all 2}
+save.image(file = paste0(IMAGE_FILE, "_2.RData"))
 ```
 
 
@@ -333,38 +336,15 @@ ratingdata.all <- ratingdata.all %>% mutate(
   bias.p = bias.p.high - bias.p.low
   ) %>% mutate(Group = Group.low)
 
-mypars.rating = c("bid.diff", "log_key.rt") # , "bid.rt.max")
+mypars.rating = c("bid.diff", "log_key.rt") 
 
 main.mat = inter.mat =  NULL
-# for (mypar.rating in mypars.rating) {
-#   for (co in c("High vol. first", "Low vol. first")) {
-#     for (mypar in mypars) {
-#       myformula = as.formula(
-#         sprintf(
-#           "%s ~ scale(%s)*scale(amount_later) + (1| subjID)",
-#           mypar.rating,
-#           mypar
-#         )
-#       )
-#       model = lmer(myformula, data = ratingdata.all %>% filter(Group == co))
-#       ss = summary(model)
-#       print(myformula)
-#       print(ss)
-#       ss.1 = coef(ss)[sprintf("scale(%s)", mypar), c("Estimate", "t value", "df", "Pr(>|t|)")]
-#       ss.2 = coef(ss)[sprintf("scale(%s):scale(amount_later)", mypar), c("Estimate", "t value", "df", "Pr(>|t|)")]
-#       main.mat = rbind(main.mat, c(mypar.rating, mypar, co, round(ss.1, 3)))
-#       inter.mat = rbind(inter.mat, c(mypar.rating, mypar, co, round(ss.2, 3)))
-#   }
-# }
-# }
 
 for (mypar.rating in mypars.rating) {
 for (co in c("High vol. first", "Low vol. first")) {
 for (mypar in mypars) {
 myformula <- as.formula(
   sprintf(
-    #"%s ~ scale(%s)*scale(amount_later) + (1| subjID)",
-    #"%s ~ scale(%s)*scale(amount_later) + (1 + scale(%s)*scale(amount_later)| subjID)",
     "%s ~ %s*amount_later_centered + (1 + amount_later_centered| subjID)",
     mypar.rating,
     mypar
@@ -380,10 +360,8 @@ print(myformula)
 print(ss)
 # Extract posterior means and summary statistics for fixed effects
 fe_summary <- get_fixef(model)
-#ss.1 <- fe_summary[sprintf("scale%s", mypar), c("Estimate", "Est.Error", "Q2.5", "Q97.5")]
-#ss.2 <- fe_summary[sprintf("scale%s:scaleamount_later", mypar), c("Estimate", "Est.Error", "Q2.5", "Q97.5")]
-ss.1 <- fe_summary[mypar, ] #c("Estimate", "Est.Error", "Q2.5", "Q97.5")]
-ss.2 <- fe_summary[sprintf("%s:amount_later_centered", mypar), ] #c("Estimate", "Est.Error", "Q2.5", "Q97.5")]
+ss.1 <- fe_summary[mypar, ]
+ss.2 <- fe_summary[sprintf("%s:amount_later_centered", mypar), ] 
 main.mat <- rbind(main.mat, c(mypar.rating, mypar, co, ss.1))
 inter.mat <- rbind(inter.mat, c(mypar.rating, mypar, co, ss.2))
 }
@@ -409,9 +387,6 @@ colnames(main.mat) = colnames(inter.mat) = c("WTP parameter",
                                              "Estimate",
                                              "Est.Error", 
                                              "95% CI"
-#                                             "t",
-#                                             "df",
-#                                             "p-value"
   )
 
 main.mat = main.mat %>% relocate(Group) %>% arrange(`Group`, `WTP parameter`,
@@ -427,29 +402,13 @@ inter.mat = inter.mat %>% relocate(Group) %>% arrange(`Group`, `WTP parameter`,
 statslist['_table_diff_main_'] = tab_to_str(main.mat)
 statslist['_table_diff_inter_'] = tab_to_str(inter.mat)
 
-# myplot = ggplot(data = ratingdata.all, aes(x = amount_later, y = key.rt, group = subjID, color=Group.high)) +
-#   geom_line() +
-#   geom_point() +
-#   xlab('Drift sensitivity difference (high vol. - low vol.)') +
-#   ylab('Response time difference (high vol. - low vol.)') 
-# print(myplot)
-# 
-# ratingdata.mean =  ratingdata.all %>% group_by(subjID) %>% summarise(key.rt = mean(key.rt), noise.p = mean(noise.p), b.drift.amount.p = mean(b.drift.amount.p))
-#  
-# myplot = ggplot(data = ratingdata.mean, aes(x = b.drift.amount.p, y = key.rt)) +
-#   geom_point() +
-#   xlab('Drift sensitivity difference (high vol. - low vol.)') +
-#   ylab('Response time difference (high vol. - low vol.)') 
-# print(myplot)
-# 
-# myplot = ggplot(data = ratingdata.mean, aes(x = noise.p, y = key.rt)) +
-#   geom_point() +
-#   xlab('Drift sensitivity difference (high vol. - low vol.)') +
-#   ylab('Response time difference (high vol. - low vol.)') 
-# print(myplot)
- 
 
 ```
+
+```{r Save all 3}
+save.image(file = paste0(IMAGE_FILE, "_3.RData"))
+```
+
 
 # Rating RT
 ```{r Rating RT}
@@ -457,8 +416,8 @@ source("./RatingRTanalysis.R")
 
 ```
 
-```{r Save all 2}
-save.image(file = paste0(IMAGE_FILE, "_2.RData"))
+```{r Save all 4}
+save.image(file = paste0(IMAGE_FILE, "_4.RData"))
 ```
 
 # Rating parameters vs DDM parameters
@@ -483,29 +442,17 @@ main.mat = inter.mat = NULL
 ratingdata.subj = ratingdata %>% group_by(subjID, Context, Context_order) %>% summarise_at(c(mypars, mypars.rating), .funs = 'mean')
 
 #*Group*Context
-mypars.rating = c("bid.diff", "log_key.rt") # , "bid.rt.max")
+mypars.rating = c("bid.diff", "log_key.rt") 
 for (mypar.rating in mypars.rating) {
   for (mypar in mypars) {
     for (co in c(1, 2)) {
       myformula = as.formula(
         sprintf(
-#          "%s ~ scale(%s)*scale(amount_later) + (1| subjID)",
-#          "%s ~ scale(%s)*scale(amount_later) + (1 + scale(%s)*scale(amount_later)| subjID)",
           "%s ~ %s*amount_later_centered + (1 + amount_later_centered| subjID)",
           mypar.rating,
           mypar
         )
       )
-      #model = lmer(myformula, data = ratingdata %>% filter(context_order == co))
-      #ss = summary(model)
-      #print(myformula)
-      #print(ss)
-      #ss.1 = coef(ss)[sprintf("scale(%s)", mypar), c("Estimate", "t value", "df", "Pr(>|t|)")]
-      #ss.2 = coef(ss)[sprintf("scale(%s):scale(amount_later)", mypar), c("Estimate", "t value", "df", "Pr(>|t|)")]
-      #main.mat = rbind(main.mat, c(mypar.rating, mypar, co, round(ss.1, 3)))
-      #inter.mat = rbind(inter.mat, c(mypar.rating, mypar, co, round(ss.2, 3)))
-
-      #model <- fitmodel(myformula, ratingdata %>% filter(context_order == co))
 
       pars <- c(mypar, sprintf("%s:amount_later_centered", mypar))
       names(pars) <- c(sprintf("_range_%s_%s_%s_main_", mypar.rating, mypar, co), sprintf("_range_%s_%s_%s_inter_", mypar.rating, mypar, co))
@@ -521,10 +468,8 @@ for (mypar.rating in mypars.rating) {
       # Extract posterior means and summary statistics for fixed effects
       
       fe_summary <- get_fixef(model)
-      #ss.1 <- fe_summary[sprintf("scale%s", mypar), c("Estimate", "Est.Error", "Q2.5", "Q97.5")]
-      #ss.2 <- fe_summary[sprintf("scale%s:scaleamount_later", mypar), c("Estimate", "Est.Error", "Q2.5", "Q97.5")]
-      ss.1 <- fe_summary[mypar, ] #c("Estimate", "Est.Error", "Q2.5", "Q97.5")]
-      ss.2 <- fe_summary[sprintf("%s:amount_later_centered", mypar), ] #c("Estimate", "Est.Error", "Q2.5", "Q97.5")]
+      ss.1 <- fe_summary[mypar, ] 
+      ss.2 <- fe_summary[sprintf("%s:amount_later_centered", mypar), ] 
       main.mat <- rbind(main.mat, c(mypar.rating, mypar, co, ss.1))
       inter.mat <- rbind(inter.mat, c(mypar.rating, mypar, co, ss.2))
 
@@ -574,33 +519,161 @@ colnames(main.mat) = colnames(inter.mat) = c("WTP parameter",
                                              "Estimate",
                                              "Est.Error", 
                                              "95% CI"
-#                                             "t",
-#                                             "df",
-#                                             "p-value"
   )
 
 #View(main.mat)
 #View(inter.mat)
 
-#myplot.main.intercept = ggplot(ratingdata, aes(x = jitter(amount_later), y = b.drift.intercept.p, col = bid.diff )) + geom_point() + scale_color_viridis_c()
-#print(myplot.main.intercept)
-#myplot.main.amount = ggplot(ratingdata, aes(x = jitter(amount_later), y = b.drift.amount.p, col = bid.diff )) + geom_point() + scale_color_viridis_c()
-#print(myplot.main.amount)
 statslist['_table_range_main_'] = tab_to_str(main.mat)
 statslist['_table_range_inter_'] = tab_to_str(inter.mat)
 
-#ratingdata.melt = melt(ratingdata, measure.vars = mypars.rating, variable.name = "Parameter")
 
 ```
 
+
+# Rating parameters vs DDM parameters; multiple regression
+
+```{r Slopes vs parameters multiple reg}
+# scale parameters, add simpler model
+
+rating_par_names = c("bid.diff" = "WTP range",
+                     "log_key.rt" = "(log) WTP response time",
+                     "bid.rt.max" = "Max response time")
+choice_par_names = c(
+  "b.drift.intercept.p" = "Drift intercept",
+  "b.drift.amount.p" = "Drift sensitivity",
+  "noise.p" = "Noise",
+  "bias.p" = "Bias",
+  "nondectime.p" = "Non-decision time",
+  "sigma.p" = "Drift sd"
+)
+
+model_names = c("Full" = "Full", "Reduced" = "Reduced", "Baseline" = "Baseline")
+
+main.mat = inter.mat = R2.mat = NULL
+
+ratingdata.subj = ratingdata %>% group_by(subjID, Context, Context_order) %>% summarise_at(c(mypars, mypars.rating), .funs = 'mean')
+model_types = c("Full", "Reduced", "Baseline")
+
+mypars.rating = c("bid.diff", "log_key.rt") 
+for (model_type in model_types){
+for (mypar.rating in mypars.rating) {
+    for (co in c(1, 2)) {
+      if (model_type =="Full"){
+      selpars <- c(mypars, "amount_later_centered")
+      myformula = as.formula(
+        sprintf(
+          "%s ~ (b.drift.intercept.p + b.drift.amount.p + noise.p + bias.p + nondectime.p)*amount_later_centered + (1 + amount_later_centered| subjID)",
+          mypar.rating
+        )
+        
+      )} else if (model_type =="Reduced") {
+      selpars <- c("b.drift.intercept.p", "bias.p", "nondectime.p", "amount_later_centered")   
+      myformula = as.formula(
+        sprintf(
+          "%s ~ (b.drift.intercept.p + bias.p + nondectime.p)*amount_later_centered + (1 + amount_later_centered| subjID)",
+          mypar.rating
+        )
+      )
+
+      } else {
+      selpars <- c("amount_later_centered")   
+      myformula = as.formula(
+        sprintf(
+          "%s ~ amount_later_centered + (1 + amount_later_centered| subjID)",
+          mypar.rating
+        )
+      )
+
+      }
+      
+      allpars <- NULL
+      for (mypar in selpars) {
+         pars <- c(mypar, sprintf("%s:amount_later_centered", mypar))
+         names(pars) <- c(sprintf("_multiple_range_%s_%s_%s_main_", mypar.rating, mypar, co), sprintf("_multiple_range_%s_%s_%s_inter_", mypar.rating, mypar, co))
+         pars <- c(mypar)
+         names(pars) <- c(sprintf("_multiple_range_%s_%s_%s_main_", mypar.rating, mypar, co))
+         allpars <- c(allpars, pars)
+      }
+      
+      ratingdata_ <- ratingdata %>% filter(nondectime.p < 2) %>% mutate_at(c(mypars, "amount_later_centered"), scale) %>% filter(context_order == co)
+      
+      model <- fitmodel(myformula, ratingdata_ , allpars, add_ics=T)
+
+      ss <- summary(model)
+      print(myformula)
+      print(ss)
+      # Extract posterior means and summary statistics for fixed effects
+      
+      fe_summary <- get_fixef(model)
+      fe_summary$co <- co
+      fe_summary$model_type <- model_type
+      fe_summary$mypar.rating <- mypar.rating
+      fe_summary$predictor <- rownames(fe_summary)
+      main.mat <- rbind(main.mat, fe_summary)
+      R2.mat <- rbind(R2.mat, c(mypar.rating, model_type, co, model$bayes_R2, model$criteria$loo$estimates["looic", "Estimate"],
+        model$criteria$loo$estimates["looic", "SE"]))
+
+    }
+  }
+}
+
+main.mat = as.data.frame(main.mat)
+main.mat = main.mat[c(7, 6, 5, 8, 1, 2, 3, 4)]
+colnames(main.mat) <- c("WTP parameter",
+                        "Model",
+                        "Context order",
+                        "Predictor",
+                        "Estimate",
+                        "Est.Error", 
+                        "Q2.5", 
+                        "Q97.5"
+  )
+
+main.mat = main.mat %>% arrange(`WTP parameter`, `Context order`)
+main.mat = main.mat %>% mutate(
+  `WTP parameter` = rating_par_names[as.character(`WTP parameter`)], 
+  Predictor = reg_labels[as.character(Predictor)],
+  Model = model_names[as.character(Model)])
+
+main.mat <- add_ci_column(main.mat)
+rownames(main.mat) <- NULL
+
+R2.mat = as.data.frame(R2.mat)
+colnames(R2.mat) <- c("WTP parameter",
+                      "Model",
+                      "Context order",
+                      "R2 Estimate",
+                      "R2 Est.Error", 
+                      "R2 Q2.5", 
+                      "R2 Q97.5",
+                      "LOOIC Estimate",
+                      "LOOIC SE"
+  )
+R2.mat = R2.mat %>% arrange(`WTP parameter`, `Context order`)
+R2.mat = R2.mat %>% mutate(`WTP parameter` = rating_par_names[as.character(`WTP parameter`)], Model = model_names[as.character(Model)])
+R2.mat = apply(R2.mat, 2, reformat)
+R2.mat = as.data.frame(R2.mat)
+R2.mat <- add_ci_column(R2.mat, lower="R2 Q2.5", upper="R2 Q97.5", colname="R2 95% CI")[c(1,2,3,4,5,8,6,7)]
+
+
+
+#View(main.mat)
+#View(inter.mat)
+
+statslist['_table_multiple_range_main_'] = tab_to_str(main.mat)
+statslist['_table_multiple_range_R2_'] = tab_to_str(R2.mat)
+
+
+```
 
 # Parameter tests
 ```{r Parameter analysis, fig.width = 15}
 source('./ParameterAnalysis.R')
 ```
 
-```{r Save all 3}
-save.image(file = paste0(IMAGE_FILE, "_3.RData"))
+```{r Save all 5}
+save.image(file = paste0(IMAGE_FILE, "_5.RData"))
 ```
 
 
@@ -808,57 +881,38 @@ print(fig.b)
 print(fig.c)
 print(fig.d)
 
-if (init100) {
+# if (init100) {
+# 
+# fig.e = ggarrange(
+#   myplot.RT.choice.group,
+#   myplot.RT.choice.agg,
+#   myplot.choiceprob.group,
+#   myplot.choiceprob.agg,
+#   myplot.choiceprob.diff.group,
+#   myplot.choiceprob.diff.agg,
+#   ncol = 2,
+#   nrow = 3,
+#   labels = c('A', 'B', 'C', 'D', 'E', 'F')
+# )
 
-fig.e = ggarrange(
-  myplot.RT.choice.group,
-  myplot.RT.choice.agg,
-  myplot.choiceprob.group,
-  myplot.choiceprob.agg,
-  myplot.choiceprob.diff.group,
-  myplot.choiceprob.diff.agg,
-  ncol = 2,
-  nrow = 3,
-  labels = c('A', 'B', 'C', 'D', 'E', 'F')
-)
 
-
-ggsave(
-  filename = file.path(FIGS_DIR, "Choices_100.png"),
-  plot = fig.e,
-  dpi = DPI,
-  width = WIDTH1COL * 2,
-  height = HEIGHT1ROW * 3
-)
-
-print(fig.e)
-}
+#ggsave(
+#  filename = file.path(FIGS_DIR, "Choices_100.png"),
+#   plot = fig.e,
+#   dpi = DPI,
+#   width = WIDTH1COL * 2,
+#   height = HEIGHT1ROW * 3
+# )
+# 
+# print(fig.e)
+#}
 
 ```
 
 
 
-Table for the regressions
+# Table for the regressions
 ```{r Regression table}
-
-reg_labels = c(
-  "Intercept" =  "Intercept",                                                    
-  "GroupLowvol.first"= "Group (low volatility first)",
-  "ContextLowvolatility"= "Context (low volatility)",                            
-  "amount_later_centered" = "Later reward (centered)", 
-  "amount_later_centered.1" = "Later reward (centered)", 
-  "amount_later_centered.2" = "Later reward (centered) squared", 
-  "background_colpurple" = "Background color (purple)",
-  "background_colteal" = "Background color (teal)",
-  "GroupLowvol.first:ContextLowvolatility" = "Group (low volatility first) x context (low volatility)",
-  "ContextLowvolatility" = "Context (low volatility)",
-  "GroupLowvol.first:amount_later_centered" = "Group (low volatility first) x later reward (centered)",
-  "ContextLowvolatility:amount_later_centered" = "Context (low volatility) x later reward (centered)",
-  "GroupLowvol.first:ContextLowvolatility:amount_later_centered" = "Group (low volatility first) x later reward (centered)",
-  "ChoiceLateroption"= "Choice (later option)",
-  "ChoiceLateroption:amount_later_centered.1" = "Choice (later option) x later reward (centered)",
-  "ChoiceLateroption:amount_later_centered.2" = "Choice (later option) x later reward (centered) squared"
-)
 
 # choices
 choice.labels = unlist(reg_labels[rownames(choice.fixef)])
@@ -870,7 +924,7 @@ choice.fixef = as.data.frame(choice.fixef)
 # "z",
 # "p-value")
 
-choice.fixef = data.frame(Parameter = choice.labels, choice.fixef)
+choice.fixef = data.frame(Predictor = choice.labels, choice.fixef)
 choice.fixef = add_ci_column(choice.fixef)
 
 # rt
@@ -888,8 +942,8 @@ rt.cor.fixef = as.data.frame(rt.cor.fixef)
 # "df",
 # "t",
 # "p-value")
-rt.fixef = data.frame(Parameter = rt.labels, rt.fixef)
-rt.cor.fixef = data.frame(Parameter = rt.cor.labels, rt.cor.fixef)
+rt.fixef = data.frame(Predictor = rt.labels, rt.fixef)
+rt.cor.fixef = data.frame(Predictor = rt.cor.labels, rt.cor.fixef)
 rt.fixef = add_ci_column(rt.fixef)
 rt.cor.fixef = add_ci_column(rt.cor.fixef)
 
@@ -903,13 +957,14 @@ statslist['_table_rt.cor.fixef_'] = tab_to_str(rt.cor.fixef)
 
 ```
 
-
+# Write results
 
 ```{r Write results}
 filein = '../results/results_text.txt'
-fileout = ifelse(!init100, 
-  '../results/results_text_fixed.txt',
-  '../results/results_text_fixed_100.txt')
+fileout = '../results/results_text_fixed.txt'
+# fileout = ifelse(!init100, 
+#   '../results/results_text_fixed.txt',
+#   '../results/results_text_fixed_100.txt')
 
 mytext = readLines(filein)
 print(statslist)
@@ -934,7 +989,7 @@ convergelist_df <- convergelist_df %>%mutate(rhat_max = unlist(rhat_max), ess_mi
 print(convergelist_df)
 ```
 
-```{r Save all 4}
-save.image(file = paste0(IMAGE_FILE, "_4.RData"))
+```{r Save all 6}
+save.image(file = paste0(IMAGE_FILE, "_6.RData"))
 ```
 

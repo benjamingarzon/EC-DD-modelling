@@ -13,6 +13,9 @@ library(pracma)
 library(brms)
 library(posterior)
 
+# Set the limit to 2048 MiB (2 GiB).
+options(future.globals.maxSize = 2048 * 1024^2)
+options(install.packages.check.source = "no")
 
 tmpdir <- tempfile(pattern="Rtmp", tmpdir = "~/ddm/EC-DD-modelling/stats/tmp")
 dir.create(tmpdir)
@@ -30,12 +33,48 @@ ADAPT_DELTA = 0.95
 statslist = list()
 convergelist = list()
 
+########################################################################################################
+# Labels
+########################################################################################################
+
 par_labels =  c("b.drift.intercept.p" = "Drift intercept",
                 "b.drift.amount.p" = "Drift\nsensitivity",
                 "bias.p" = "Bias",
                 "nondectime.p" = "Non-decision\ntime",
                 #"boundary.p" = "Boundary")                
                 "noise.p" = "Noise")
+
+reg_labels = c(
+  "Intercept" =  "Intercept",                                                    
+  "GroupLowvol.first"= "Group (low volatility first)",
+  "ContextLowvolatility"= "Context (low volatility)",                            
+  "amount_later_centered" = "Later reward (centered)", 
+  "amount_later_centered.1" = "Later reward (centered)", 
+  "amount_later_centered.2" = "Later reward (centered) squared", 
+  "background_colpurple" = "Background color (purple)",
+  "background_colteal" = "Background color (teal)",
+  "GroupLowvol.first:ContextLowvolatility" = "Group (low volatility first) x context (low volatility)",
+  "ContextLowvolatility" = "Context (low volatility)",
+  "GroupLowvol.first:amount_later_centered" = "Group (low volatility first) x later reward (centered)",
+  "ContextLowvolatility:amount_later_centered" = "Context (low volatility) x later reward (centered)",
+  "GroupLowvol.first:ContextLowvolatility:amount_later_centered" = "Group (low volatility first) x later reward (centered)",
+  "ChoiceLateroption"= "Choice (later option)",
+  "ChoiceLateroption:amount_later_centered.1" = "Choice (later option) x later reward (centered)",
+  "ChoiceLateroption:amount_later_centered.2" = "Choice (later option) x later reward (centered) squared",
+
+  "b.drift.intercept.p" = "Drift intercept",
+  "b.drift.amount.p" = "Drift sensitivity",
+  "noise.p" = "Noise",
+  "bias.p" = "Bias",
+  "nondectime.p" = "Non-decision time",
+  "b.drift.intercept.p:amount_later_centered" = "Drift intercept x later reward (centered)",
+  "b.drift.amount.p:amount_later_centered" = "Drift sensitivity x later reward (centered)",
+  "noise.p:amount_later_centered" = "Noise x later reward (centered)",
+  "bias.p:amount_later_centered" = "Bias x later reward (centered)",
+  "nondectime.p:amount_later_centered" = "Non-decision time x later reward (centered)"
+
+)
+
 
 ########################################################################################################
 # some aux functions
@@ -444,6 +483,7 @@ fitmodel = function(ff,
           iter = BRMS_ITER,
           warmup = BRMS_WARMUP,
           set_priors = TRUE, 
+          add_ics = FALSE, # add information criteria
           thin = 2,
           seed = 13)
 {
@@ -569,8 +609,6 @@ fitmodel = function(ff,
 
   # Unstandardize main effects
   for (v in pred_vars_main) {
-    # Unstandardize: multiply by sd_y / sd_x
-    #browser()
     colname <- paste0("b_", v)
     # If colname matches the beginning of any column in unstd_draws (e.g., for categorical predictors)
     main_effects <- names(unstd_draws)[!grepl(":", names(unstd_draws))]
@@ -589,9 +627,6 @@ fitmodel = function(ff,
     }
   }
     
-  
-  
-  #browser()
   # Unstandardize interaction terms
   interaction_terms <- grep("^b_.*:", rownames(unstd_summary), value = TRUE)
   for (term in interaction_terms) {
@@ -673,6 +708,10 @@ fitmodel = function(ff,
     for (i in seq_along(params)) {
       get_stats(model, params[i], family)
     }
+  }
+  if (add_ics) {
+    model$bayes_R2 <- bayes_R2(model)
+    model <- add_criterion(model, c("loo", "waic", "kfold", "loo_subsample", "bayes_R2", "loo_R2"))
   }
   return(model)
 }
