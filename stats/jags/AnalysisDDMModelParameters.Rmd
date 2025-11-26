@@ -6,7 +6,6 @@ output: html_document
 # Perform analyses on response variables and DDM parameters
 
 ```{r}
-# detach("package:plotly", unload=TRUE)
 rm(list = ls())
 source("../analysis_funcs.R")
 
@@ -14,27 +13,12 @@ WD = '../../data'
 WDD = file.path(WD, 'experiment')
 mytheme = theme_classic(base_size = 11) + theme(legend.position = 'bottom', legend.title = element_blank())
 theme_set(mytheme)
-# Load previous fit
-#MYFILE = '../results/linear_drift_no_pooling_corr_ddm-processed_data_censored-27-12-2023_07:59-10000-50000-jags-pars.RData'
-#MYFILE = '../results/linear_drift_no_pooling_bd_ddm-processed_data_censored-27-12-2023_20:07-10000-50000-jags-pars.RData'
-#init100 = F #params$init100 == 'true'
-# if (init100) {
-#   MYFILE = '../results/linear_drift_no_pooling_ddm-processed_data_balanced_censored_100-08-08-2025_07:15-20000-50000-jags-pars.RData'
-# load(MYFILE)
-# load(file.path(WDD, "processed_data_balanced_censored_100.RData"))
-# IMAGE_FILE = file.path("../results/AnalysisDDMModelParameters_workspace_100")
-# 
-# } else {
-  MYFILE = '../results/linear_drift_no_pooling_ddm-processed_data_balanced_censored-08-08-2025_14:53-20000-50000-jags-pars.RData'
+MYFILE = '../results/linear_drift_no_pooling_ddm-processed_data_balanced_censored-08-08-2025_14:53-20000-50000-jags-pars.RData'
 load(MYFILE)
 load(file.path(WDD, "processed_data_balanced_censored.RData"))
 IMAGE_FILE = file.path("../results/AnalysisDDMModelParameters_workspace")
-#}
 
 numSubjs = dataList$N
-
-# Load data
-#load(file.path(WDD, "processed_data_censored_220.RData"))
 
 grouping_var = 'subj_context'
 choicedata.common$subj_context = paste(choicedata.common$subjID, choicedata.common$context)
@@ -78,12 +62,6 @@ ratingdata.sub = ratingdata.sub %>%
 
 )
 
-# use last slider response time
-
-
-#ratingdata.sub = ratingdata.sub %>% arrange(subjID, key.rt) %>% group_by(subjID, Context, Context_order, Group) %>% mutate(key.rt = key.rt - lag(key.rt), key.rt.orig = key.rt) 
-
-
 ```
 
 # Extract parameters
@@ -93,8 +71,7 @@ numPars <- 5
 # Individual parameters (e.g., individual posterior means)
 allIndPars <- array(NA, c(numSubjs, numPars))
 allIndPars <- as.data.frame(allIndPars)
-#parVals$boundary.p = parVals$noise.p
-#parVals$bias.p = parVals$SNR.p
+
 for (i in 1:numSubjs) {
   allIndPars[i,] <- c(
     mean(parVals$b.drift.intercept.p[i,]),
@@ -915,36 +892,35 @@ print(fig.d)
 ```{r Regression table}
 
 # choices
+choice.nogroup.labels = unlist(reg_labels[rownames(choice.nogroup.fixef)])
+choice.nogroup.fixef = apply(choice.nogroup.fixef, 2, reformat)
+choice.nogroup.fixef = as.data.frame(choice.nogroup.fixef)
+choice.nogroup.fixef = data.frame(Predictor = choice.nogroup.labels, choice.nogroup.fixef)
+choice.nogroup.fixef = add_ci_column(choice.nogroup.fixef)
+
 choice.labels = unlist(reg_labels[rownames(choice.fixef)])
 choice.fixef = apply(choice.fixef, 2, reformat)
 choice.fixef = as.data.frame(choice.fixef)
-#colnames(choice.fixef) =  c(
-# "Estimate",
-# "Est.Error",    
-# "z",
-# "p-value")
-
 choice.fixef = data.frame(Predictor = choice.labels, choice.fixef)
 choice.fixef = add_ci_column(choice.fixef)
 
 # rt
+rt.nogroup.labels = unlist(reg_labels[rownames(rt.nogroup.fixef)])
+rt.nogroup.fixef = apply(rt.nogroup.fixef, 2, reformat)
+rt.nogroup.fixef = as.data.frame(rt.nogroup.fixef)
+rt.nogroup.fixef = data.frame(Predictor = rt.nogroup.labels, rt.nogroup.fixef)
+rt.nogroup.fixef = add_ci_column(rt.nogroup.fixef)
+
 rt.labels = unlist(reg_labels[rownames(rt.fixef)])
 rt.fixef = apply(rt.fixef, 2, reformat)
 rt.fixef = as.data.frame(rt.fixef)
+rt.fixef = data.frame(Predictor = rt.labels, rt.fixef)
+rt.fixef = add_ci_column(rt.fixef)
 
 rt.cor.labels = unlist(reg_labels[rownames(rt.cor.fixef)])
 rt.cor.fixef = apply(rt.cor.fixef, 2, reformat)
 rt.cor.fixef = as.data.frame(rt.cor.fixef)
-#colnames(rt.fixef) = colnames(rt.cor.fixef) =  
-#c(
-# "Estimate",
-# "Sd",    
-# "df",
-# "t",
-# "p-value")
-rt.fixef = data.frame(Predictor = rt.labels, rt.fixef)
 rt.cor.fixef = data.frame(Predictor = rt.cor.labels, rt.cor.fixef)
-rt.fixef = add_ci_column(rt.fixef)
 rt.cor.fixef = add_ci_column(rt.cor.fixef)
 
 #statslist['_table_choice.fixef_'] = tab_to_str(choice.fixef[, c(1,2,4,5)])

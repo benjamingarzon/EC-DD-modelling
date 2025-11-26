@@ -84,6 +84,7 @@ model = fitmodel(
 )
 
 model.choice1 = model
+choice.nogroup.fixef = get_fixef(model) 
 
 # with order correction
 

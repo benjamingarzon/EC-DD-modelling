@@ -152,17 +152,6 @@ myplot.RT.choice.group = myplot.RT.choice + facet_grid(Group ~ Choice)
 print(myplot.RT.choice.order)
 print(myplot.RT.choice.group)
 
-# myplot.RT.choice = ggplot(data = choicedata, aes(
-#   x = cut(ev, breaks),
-#   y = log_rt,
-#   fill = Context
-# )) +
-#   geom_violin() +
-#   xlab('Later amount ($)') +
-#   ylab('Response time (s)') +  theme(legend.position = 'bottom', legend.title = element_blank()) #facet_grid(  . ~ Context_order)
-#
-# print(myplot.RT.choice)
-
 
 myplot.RT.choice.hist = ggplot(
   data = subset(choicedata, amount_later > 2.5 &
@@ -196,6 +185,8 @@ model = fitmodel(
   c("_RT_contextNOgroup_" = "ContextLow volatility")
 )
 
+rt.nogroup.fixef = get_fixef(model) 
+
 
 # with order correction
 #source("../analysis_funcs.R")
@@ -208,7 +199,6 @@ model = fitmodel(
     "_RT_groupxcontext_" = "GroupLow vol. first:ContextLow volatility")
 )
 
-#cc = fixef(model)["GroupLow vol. first:ContextLow volatility"]
 cc = get_fixef(model)["GroupLowvol.first:ContextLowvolatility", "Estimate"]
 mm <- model.matrix(as.formula("log_rt ~ Group*Context"), data = choicedata)
 
@@ -228,7 +218,7 @@ model = fitmodel(
   
 )
 
-rt.cor.fixef = get_fixef(model) #coef(summary(model))
+rt.cor.fixef = get_fixef(model) 
 
 choicedata.median = choicedata %>%
   group_by(subjID,
