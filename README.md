@@ -3,12 +3,6 @@
 
 analysis_func.R
 
-## Stan: **NOT USED
-stan/FitDDMtoTaskData.R\
-stan/ModelCheckAndComparison.Rmd\
-stan/AnalysisDDMModelParameters.Rmd\
-stan/models/\
-
 ## JAGS: 
 jags/FitDDMtoTaskData.R\
 jags/ModelCheckAndComparison.Rmd\
