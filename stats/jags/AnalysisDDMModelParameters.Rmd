@@ -32,15 +32,15 @@ subjList <-
                              grouping_var)])
 
 choicedata.common = choicedata.common %>% mutate(
-  Context = ifelse(context == 'c1', 'High volatility', 'Low volatility'),
+  Context = ifelse(context == 'c1', 'High variance', 'Low variance'),
   Choice = ifelse(choice == 1, 'Later option', 'Immediate option'),
   Context_order = ifelse(context_order == 1, 'First context', 'Second context'),
   Group =  ifelse(
     context_order == 1 &
       context == 'c1' |
       context_order == 2 & context == 'c2' ,
-    'High vol. first',
-    'Low vol. first'
+    'High var. first',
+    'Low var. first'
   ),
   log_rt = log(rt)
 )
@@ -48,14 +48,14 @@ choicedata.common = choicedata.common %>% mutate(
 ratingdata.sub = ratingdata.sub %>% 
   mutate(  key.rt.orig = key.rt) %>%
   mutate(
-  Context = ifelse(context == 'c1', 'High volatility', 'Low volatility'),
+  Context = ifelse(context == 'c1', 'High variance', 'Low variance'),
   Context_order = ifelse(context_order == 1, 'First context', 'Second context'),
   Group =  ifelse(
     context_order == 1 &
       context == 'c1' |
       context_order == 2 & context == 'c2' ,
-    'High vol. first',
-    'Low vol. first'
+    'High var. first',
+    'Low var. first'
   ),
   key.rt = bid.rt.max,
   log_key.rt = log(bid.rt.max)
@@ -98,15 +98,15 @@ colnames(allIndPars) <- c(
 )
 
 allIndPars = allIndPars %>% mutate(
-  Context = ifelse(context == 'c1', 'High volatility', 'Low volatility'),
+  Context = ifelse(context == 'c1', 'High variance', 'Low variance'),
   Context_short = ifelse(context == 'c1', 'High', 'Low'),
   Context_order = ifelse(context_order == 1, 'First context', 'Second context'),
   Group =  ifelse(
     context_order == 1 &
       context == 'c1' |
       context_order == 2 & context == 'c2' ,
-    'High vol. first',
-    'Low vol. first'
+    'High var. first',
+    'Low var. first'
   )
 )
 ```
@@ -149,6 +149,17 @@ write.table(include_subjects, file = file.path(WDD, 'final_subjects_included.txt
 # Remove outliers
 ```{r}
 #allIndPars = allIndPars %>% filter(nondectime.p < 2)
+```
+
+
+# Distribution of delay later
+```{r}
+cdelay = choicedata.common %>% filter(subjID %in% include_subjects) %>% group_by(subjID) %>% summarise(delay_later = first(delay_later))
+
+print(mean(cdelay$delay_later))
+print(sd(cdelay$delay_later))
+print(range(cdelay$delay_later))
+
 ```
 
 
@@ -318,7 +329,7 @@ mypars.rating = c("bid.diff", "log_key.rt")
 main.mat = inter.mat =  NULL
 
 for (mypar.rating in mypars.rating) {
-for (co in c("High vol. first", "Low vol. first")) {
+for (co in c("High var. first", "Low var. first")) {
 for (mypar in mypars) {
 myformula <- as.formula(
   sprintf(
@@ -660,7 +671,7 @@ myplot = ggplot(allIndPars.sum, aes(x=parameter, y=value)) +
     geom_errorbar(aes(ymin = value-se, ymax = value+se), width=.1) +
     geom_line() +
     geom_point() + 
-    ylab('Parameter difference (low volatility - high volatility)') + 
+    ylab('Parameter difference (low variance - high variance)') + 
     geom_hline(yintercept = 0, col = 'red')
 print(myplot)
 
@@ -678,7 +689,7 @@ pairs(mydata[mypars])
 
 mydata = mydata %>% mutate(
   Context_tag = ifelse(Context_short == 'High', 'HV', 'LV'),
-  Group_tag = ifelse(Group == 'High vol. first', 'HF', 'LF')
+  Group_tag = ifelse(Group == 'High var. first', 'HF', 'LF')
 )
 
 mydata$GroupContext = paste(mydata$Group_tag, mydata$Context_tag, sep = " - ")
