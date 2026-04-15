@@ -160,6 +160,12 @@ print(mean(cdelay$delay_later))
 print(sd(cdelay$delay_later))
 print(range(cdelay$delay_later))
 
+ggplot(cdelay, aes(x = delay_later)) +
+  geom_histogram(binwidth = 1, fill = "steelblue", color = "black", alpha = 0.7) +
+  labs(title = "Distribution of Delay Later", x = "Delay (later)", y = "Frequency") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, size = 14, face = "bold"))
+
 ```
 
 
