@@ -34,8 +34,8 @@ choicedata.mean = choicedata %>%
     prob_late = mean(choice)
   )
 
-choicedata.mean.high = subset(choicedata.mean, Context == 'High volatility')
-choicedata.mean.low = subset(choicedata.mean, Context == 'Low volatility')
+choicedata.mean.high = subset(choicedata.mean, Context == 'High variance')
+choicedata.mean.low = subset(choicedata.mean, Context == 'Low variance')
 choicedata.diff = merge(
   choicedata.mean.high,
   choicedata.mean.low,
@@ -66,7 +66,7 @@ myplot.choiceprob.diff = ggplot(
   geom_point() +
   geom_errorbar(width = 0.5) +
   xlab('Later amount ($)') +
-  ylab('Difference in frequency of \nlater option (high-low vol.)') + theme(legend.position = 'bottom', legend.title = element_blank())
+  ylab('Difference in frequency of \nlater option (high-low var.)') + theme(legend.position = 'bottom', legend.title = element_blank())
 
 myplot.choiceprob.diff.group = myplot.choiceprob.diff + facet_grid(. ~ Group)
 print(myplot.choiceprob.diff.group)
@@ -77,8 +77,8 @@ model = fitmodel(
   "choice ~ Context*amount_later_centered + (1 + Context*amount_later_centered|subjID)", # background_col
   choicedata,
   c(
-    "_choice_contextNOgroup_" = "ContextLow volatility",
-    "_choice_contextxamountNOgroup_" = "ContextLow volatility:amount_later_centered"
+    "_choice_contextNOgroup_" = "ContextLow variance",
+    "_choice_contextxamountNOgroup_" = "ContextLow variance:amount_later_centered"
   ),
   family = 'binomial'
 )
@@ -87,32 +87,22 @@ model.choice1 = model
 choice.nogroup.fixef = get_fixef(model) 
 
 # with order correction
-
+# Equation 2
 model = fitmodel(
-  "choice ~ Group*Context*amount_later_centered + (1 + Group*Context*amount_later_centered|subjID)",
-#  "choice ~ Group*Context*amount_later_centered + (1|subjID)", 
+  "choice ~ Group*Context*amount_later_centered + (1 + Context*amount_later_centered|subjID)",
+
   choicedata,
   c(
-    "_choice_context_" = "ContextLow volatility",
-    "_choice_groupxcontext_" = "GroupLow vol. first:ContextLow volatility",
-    "_choice_groupxamount_" = "GroupLow vol. first:amount_later_centered",
-    "_choice_contextxamount_" = "ContextLow volatility:amount_later_centered",
-    "_choice_groupxcontextxamount_" = "GroupLow vol. first:ContextLow volatility:amount_later_centered"
+    "_choice_context_" = "ContextLow variance",
+    "_choice_groupxcontext_" = "GroupLow var. first:ContextLow variance",
+    "_choice_groupxamount_" = "GroupLow var. first:amount_later_centered",
+    "_choice_contextxamount_" = "ContextLow variance:amount_later_centered",
+    "_choice_groupxcontextxamount_" = "GroupLow var. first:ContextLow variance:amount_later_centered"
   ),
   family = 'binomial'
 )
 
 model.choice2 = model
-# model = fitmodel(
-#   "choice ~ Group + Context + amount_later_centered + Group:Context + Context:amount_later_centered  + (1|subjID)",
-#   choicedata,
-#   c(
-#     "_choice_context_" = "ContextLow volatility",
-#     "_choice_groupxcontext_" = "GroupLow vol. first:ContextLow volatility",
-#     "_choice_contextxamount_" = "ContextLow volatility:amount_later_centered"
-#   ),
-#   family = 'binomial'
-# )
 
 print(summary(model))
 
@@ -125,37 +115,9 @@ draws_df[, c(5)] <- 0
 
 new_predictions <- posterior_predict(model,
   newdata = choicedata,
-  re_formula = ~(1 + Group*Context*amount_later_centered|subjID),
+  re_formula = ~(1 + Context*amount_later_centered|subjID),
   fixed_effects = draws_df)
 
-#mm <- model.matrix(as.formula("choice ~ Group*Context*amount_later_centered"), data = choicedata)
-#colnames(mm) <- gsub(" ", "", colnames(mm))
-#inds <- c(1, 2, 3, 4, 6, 7)
-#colnames(mm)[1] <- "Intercept"
-#inds <- c(1, 3, 4, 7)
-
-
-
-#ffx <- fixef(model)
-#fefs <- names(ffx)[inds]
-#rfx <- ranef(model)$subjID[,"Estimate"]
-#eta <- mm[, fefs] %*% ffx[fefs] + rfx[choicedata$subjID, 1]
-
-#ffx <- fixef(model)[,"Estimate"]
-#fefs <- names(ffx)#[inds]
-#ffx_zeroed <- ffx
-#fefs_zeroed <- fefs
-#ffx_zeroed[fefs_zeroed[5]] <- 0  # zero the effect of the 5th predictor
-
-#rfx <- ranef(model)$subjID[,"Estimate", ]
-#print(fefs)
-#eta <- mm[, fefs] %*% ffx[fefs] + rfx[choicedata$subjID]
-
-#rfx <- ranef(model)$subjID[, , "Intercept"][, "Estimate"]
-#subj_index <- match(choicedata$subjID, names(rfx))
-#rfx_vec <- rfx[subj_index]
-
-#eta <- mm[, fefs_zeroed] %*% ffx_zeroed[fefs_zeroed] + rfx_vec
 choice.pred <- colMeans(new_predictions) #plogis(eta)
 
 #choice.pred <- (plogis(eta) + residuals(model, type='response'))
@@ -210,8 +172,8 @@ choicedata.mean.agg = choicedata %>%
   dplyr::summarise(ev = limit_mean(ev.cut),
                    prob_late = mean(choice.pred))
 
-choicedata.mean.high = subset(choicedata.mean.agg, Context == 'High volatility')
-choicedata.mean.low = subset(choicedata.mean.agg, Context == 'Low volatility')
+choicedata.mean.high = subset(choicedata.mean.agg, Context == 'High variance')
+choicedata.mean.low = subset(choicedata.mean.agg, Context == 'Low variance')
 
 choicedata.diff = merge(
   choicedata.mean.high,
@@ -244,7 +206,7 @@ myplot.choiceprob.diff.agg = ggplot(
   geom_point() +
   geom_errorbar(width = 0.5) +
   xlab('Later amount ($)') +
-  ylab('Difference in frequency of \nlater option (high-low vol.)') + theme(legend.position = 'bottom', legend.title = element_blank())
+  ylab('Difference in frequency of \nlater option (high-low var.)') + theme(legend.position = 'bottom', legend.title = element_blank())
 
 print(myplot.choiceprob.diff.agg)
 
@@ -254,14 +216,14 @@ print(myplot.choiceprob.diff.agg)
 choicedata.group.wide = dcast(choicedata.group,
                               ev.cut + Context_order ~ Context,
                               value.var = c("prob_late.mean"))
-choicedata.group.wide = choicedata.group.wide %>% mutate(highprob = `High volatility`,
-                                                         lowprob = `Low volatility`)
+choicedata.group.wide = choicedata.group.wide %>% mutate(highprob = `High variance`,
+                                                         lowprob = `Low variance`)
 choicedata.group.wide.sem = dcast(choicedata.group,
                                   ev.cut + Context_order ~ Context,
                                   value.var = c("prob_late.sem"))
 
-choicedata.group.wide.sem = choicedata.group.wide.sem %>% mutate(highsem = `High volatility`,
-                                                                 lowsem = `Low volatility`)
+choicedata.group.wide.sem = choicedata.group.wide.sem %>% mutate(highsem = `High variance`,
+                                                                 lowsem = `Low variance`)
 
 choicedata.group.wide = merge(
   choicedata.group.wide,
@@ -288,8 +250,8 @@ myplot.choiceprob.wide = ggplot(
   geom_abline(slope = 1, intercept = 0) +
   geom_errorbar() +
   geom_errorbarh() +
-  xlab("Probability of later option\n(high volatility context)") +
-  ylab("Probability of later option\n(low volatility context)")
+  xlab("Probability of later option\n(high variance context)") +
+  ylab("Probability of later option\n(low variance context)")
 #xlab('Later amount ($)') +
 #ylab('Frequency of later option') + theme(legend.position = 'bottom', legend.title = element_blank())
 print(myplot.choiceprob.wide)

@@ -39,15 +39,15 @@ subjList <-
                              grouping_var)])
 
 choicedata.common = choicedata.common %>% mutate(
-  Context = ifelse(context == 'c1', 'High volatility', 'Low volatility'),
+  Context = ifelse(context == 'c1', 'High variance', 'Low variance'),
   Choice = ifelse(choice == 1, 'Later option', 'Immediate option'),
   Context_order = ifelse(context_order == 1, 'First context', 'Second context'),
   Group =  ifelse(
     context_order == 1 &
       context == 'c1' |
       context_order == 2 & context == 'c2' ,
-    'High vol. first',
-    'Low vol. first'
+    'High var. first',
+    'Low var. first'
   )
 )
 
@@ -90,15 +90,15 @@ colnames(allIndPars) <- c(
 )
 
 allIndPars = allIndPars %>% mutate(
-  Context = ifelse(context == 'c1', 'High volatility', 'Low volatility'),
+  Context = ifelse(context == 'c1', 'High variance', 'Low variance'),
   Context_short = ifelse(context == 'c1', 'High', 'Low'),
   Context_order = ifelse(context_order == 1, 'First context', 'Second context'),
   Group =  ifelse(
     context_order == 1 &
       context == 'c1' |
       context_order == 2 & context == 'c2' ,
-    'High vol. first',
-    'Low vol. first'
+    'High var. first',
+    'Low var. first'
   )
 )
 
@@ -393,7 +393,7 @@ sample_pars_norm <- function(pars){
 }
 
 parlist = list()
-parlist[['High volatility']] <- list(
+parlist[['High variance']] <- list(
                 b.drift.intercept.mean = -0.04,
                 b.drift.amount.mean = 0.4,
                 bias.mean = 0.5,
@@ -406,7 +406,7 @@ parlist[['High volatility']] <- list(
                 nondectime.sd = 0.1,
                 noise.sd = 0.1)
 
-parlist[['Low volatility']] <- list(
+parlist[['Low variance']] <- list(
                 b.drift.intercept.mean = -0.04,
                 b.drift.amount.mean = 0.48,
                 bias.mean = 0.5,
@@ -425,7 +425,7 @@ allIndPars <- NULL
 i <- 1
 while (i <= sim_subjs){
   print(i)
-  for (cont in c('High volatility', 'Low volatility')){
+  for (cont in c('High variance', 'Low variance')){
   ID <- sample(unique(choicedata.common$subjID), 1)
   choicedata.sub <- subset(choicedata.common, subjID == ID & context == 'c1')
   choicedata.sub$subjID <- i

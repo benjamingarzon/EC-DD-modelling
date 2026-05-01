@@ -39,8 +39,8 @@ for (mypar.rating in mypars.rating) {
         mediator = "mediator",
         boot = T,
         sims = 1000,
-        control.value = "Low volatility",
-        treat.value = "High volatility"
+        control.value = "Low variance",
+        treat.value = "High variance"
       )
       #print(paste(mypar.rating, mypar))
       #print(c(med$d0, med$d0.ci, med$d0.p ))
@@ -143,8 +143,8 @@ if (F) {
         treat = "Context",
         mediator = "mediator",
         boot = F,
-        control.value = "Low volatility",
-        treat.value = "High volatility"
+        control.value = "Low variance",
+        treat.value = "High variance"
       )
       #print(paste(mypar.rating, mypar))
       #print(c(med$d0, med$d0.ci, med$d0.p ))
@@ -239,8 +239,8 @@ if (F) {
         mediator = "mediator",
         boot = T,
         sims = 500,
-        control.value = "Low volatility",
-        treat.value = "High volatility"
+        control.value = "Low variance",
+        treat.value = "High variance"
       )
       #print(paste(mypar.rating, mypar))
       #print(c(med$d0, med$d0.ci, med$d0.p ))

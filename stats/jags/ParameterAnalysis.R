@@ -19,7 +19,7 @@ allIndPars.melt = melt(
 
 myplot.reliab = ggplot(allIndPars.melt, aes(x = Context, y = value, group = subjID)) + geom_line(linewidth = 0.4) + geom_point(size = 0.6) +
   ylab('Parameter value') +
-  xlab('Volatility') +
+  xlab('variance') +
   facet_wrap(. ~ parameter_label, scales = "free", nrow = 1)
 
 print(myplot.reliab)
@@ -120,7 +120,7 @@ myplot.differences.all = ggplot() +
     size = 1
   ) +
   ylab('Parameter value') +
-  xlab('Volatility') +
+  xlab('variance') +
   facet_wrap(. ~ parameter_label, scales = 'free', nrow = 1)
 print(myplot.differences.all)
 
@@ -137,29 +137,29 @@ parameters = c("nondectime.p",
                # "boundary.p",
                "bias.p")
 
-tests = c("ContextLow volatility",
-          "GroupLow vol. first:ContextLow volatility")
+tests = c("ContextLow variance",
+          "GroupLow var. first:ContextLow variance")
 
 for (parameter in parameters) {
   names(tests) = c(sprintf("_%s_context_", parameter),
                    sprintf("_%s_groupxcontext_", parameter))
 
-#  %s ~  Group * Context + (1 + Group * Context|subjID)
-# %s ~ Group * Context + (1 |subjID)  
+
+# Equation 3
   model = fitmodel(sprintf("%s ~ Group * Context + (1|subjID)", parameter),
                    allIndPars.good,
                    tests)
   
   mm <- model.matrix(as.formula(sprintf("%s ~ Group * Context", parameter)), data = allIndPars.good)
   colnames(mm) <- gsub(" ", "", colnames(mm))
-#  cc.main = fixef(model)["GroupLow vol. first:ContextLow volatility"]
+#  cc.main = fixef(model)["GroupLow var. first:ContextLow variance"]
 #  mm = model.matrix(model)
 #  allIndPars.good[parameter] = allIndPars.good[parameter] - cc.main *
-#    mm[, "GroupLow vol. first:ContextLow volatility"]
-  cc.main = get_fixef(model)["GroupLowvol.first:ContextLowvolatility", "Estimate"]
+#    mm[, "GroupLow var. first:ContextLow variance"]
+  cc.main = get_fixef(model)["GroupLowvar.first:ContextLowvariance", "Estimate"]
   parameter_pred = paste(parameter, 'pred', sep = '.')
   allIndPars.good[parameter] = allIndPars.good[parameter] - cc.main *
-    mm[, "GroupLowvol.first:ContextLowvolatility"]
+    mm[, "GroupLowvar.first:ContextLowvariance"]
 }
 
 print(summary(model))
@@ -194,6 +194,6 @@ myplot.differences.agg = ggplot(data = allIndPars.sum,
   geom_errorbar(width = 0.2,
                 size = 1) +
   ylab('Parameter value') +
-  xlab('Volatility') +
+  xlab('variance') +
   facet_wrap(. ~ parameter_label, scales = 'free', nrow = 1)
 print(myplot.differences.agg)

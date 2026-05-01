@@ -179,10 +179,9 @@ choicedata$amount_later_centered.2 = choicedata$amount_later_centered ^ 2
 
 # without order correction
 model = fitmodel(
-  #  "log_rt ~ Group*Context + (1|subjID)", 
   "log_rt ~ Context + (1 + Context|subjID)", 
   choicedata,
-  c("_RT_contextNOgroup_" = "ContextLow volatility")
+  c("_RT_contextNOgroup_" = "ContextLow variance")
 )
 
 rt.nogroup.fixef = get_fixef(model) 
@@ -190,21 +189,21 @@ rt.nogroup.fixef = get_fixef(model)
 
 # with order correction
 #source("../analysis_funcs.R")
+# Equation 1
 model = fitmodel(
-#  "log_rt ~ Group*Context + (1|subjID)", 
-  "log_rt ~ Group*Context + (1 + Group*Context|subjID)", 
+  "log_rt ~ Group*Context + (1 + Context|subjID)", 
   choicedata,
-  c("_RT_context_" = "ContextLow volatility",
-    "_RT_group_" = "GroupLow vol. first",
-    "_RT_groupxcontext_" = "GroupLow vol. first:ContextLow volatility")
+  c("_RT_context_" = "ContextLow variance",
+    "_RT_group_" = "GroupLow var. first",
+    "_RT_groupxcontext_" = "GroupLow var. first:ContextLow variance")
 )
 
-cc = get_fixef(model)["GroupLowvol.first:ContextLowvolatility", "Estimate"]
+cc = get_fixef(model)["GroupLowvar.first:ContextLowvariance", "Estimate"]
 mm <- model.matrix(as.formula("log_rt ~ Group*Context"), data = choicedata)
 
 #rt.fixef = coef(summary(model))
 rt.fixef = get_fixef(model) 
-choicedata$rt.pred = exp(log(choicedata$rt) - cc * mm[, "GroupLow vol. first:ContextLow volatility"])
+choicedata$rt.pred = exp(log(choicedata$rt) - cc * mm[, "GroupLow var. first:ContextLow variance"])
 
 
 
@@ -212,8 +211,8 @@ model = fitmodel(
   "log_rt ~ Group*Context + Choice*amount_later_centered.1 + Choice*amount_later_centered.2 + (1 + Group*Context + Choice*amount_later_centered.1 + Choice*amount_later_centered.2|subjID)",
   choicedata,
   c(
-    "_RT_contextCORchoicexamount_" = "ContextLow volatility",
-    "_RT_groupxcontextCORchoicexamount_" = "GroupLow vol. first:ContextLow volatility"
+    "_RT_contextCORchoicexamount_" = "ContextLow variance",
+    "_RT_groupxcontextCORchoicexamount_" = "GroupLow var. first:ContextLow variance"
   ),
   
 )

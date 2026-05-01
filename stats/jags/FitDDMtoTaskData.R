@@ -180,6 +180,7 @@ if (MODEL_NAME %in% c('linear_drift_no_pooling_bd_ddm'))
     "nondectime.p",
     "boundary.p",
     "bias.p",
+    "SNR.p",
     "deviance"
   )
   

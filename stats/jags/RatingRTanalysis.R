@@ -85,25 +85,25 @@ myplot = ggplot(data = ratingdata.median, aes(x = Context, y = key.rt.median, gr
   ylab('Response time') + facet_grid(. ~ Group)
 print(myplot)
 
+# Equation 5
 model.rt = fitmodel(
-  "log_key.rt ~ Group*Context + (1 +  Group*Context| subjID)",
-#  "log_key.rt ~ Group*Context + (1| subjID)",
+  "log_key.rt ~ Group*Context + (1 +  Context| subjID)",
   ratingdata,
   c(
-    "_RatingRT_context_" = "ContextLow volatility",
-    "_RatingRT_groupxcontext_" = "GroupLow vol. first:ContextLow volatility"
+    "_RatingRT_context_" = "ContextLow variance",
+    "_RatingRT_groupxcontext_" = "GroupLow var. first:ContextLow variance"
   )
 )
 print(summary(model.rt))
 
-#cc = fixef(model.rt)["GroupLow vol. first:ContextLow volatility"]
+#cc = fixef(model.rt)["GroupLow var. first:ContextLow variance"]
 #mm = model.matrix(model.rt)
 
-cc = get_fixef(model.rt)["GroupLowvol.first:ContextLowvolatility", "Estimate"]
+cc = get_fixef(model.rt)["GroupLowvar.first:ContextLowvariance", "Estimate"]
 mm <- model.matrix(as.formula("log_key.rt ~ Group*Context"), data = ratingdata)
 colnames(mm) <- gsub(" ", "", colnames(mm))
 
-ratingdata$key.rt.pred = exp(log(ratingdata$key.rt) - cc * mm[, "GroupLowvol.first:ContextLowvolatility"])
+ratingdata$key.rt.pred = exp(log(ratingdata$key.rt) - cc * mm[, "GroupLowvar.first:ContextLowvariance"])
 
 
 

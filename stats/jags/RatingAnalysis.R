@@ -89,13 +89,14 @@ myplot.range.order = myplot.range + facet_grid(. ~ Context_order)
 print(myplot.range.group)
 print(myplot.range.order)
 
+# Equation 4
 model = fitmodel(
 #  "bid.diff ~ Group*amount_later_centered + (1|subjID)",
-  "bid.diff ~ Group*amount_later_centered + (1 + Group*amount_later_centered|subjID)",
+  "bid.diff ~ Group*amount_later_centered + (1 + amount_later_centered|subjID)",
   ratingdata,
   c(
-    "GroupLow vol. first:amount_later_centered",
-    "GroupLow vol. first"
+    "GroupLow var. first:amount_later_centered",
+    "GroupLow var. first"
   )
 )
 print(summary(model))
@@ -105,32 +106,32 @@ print(summary(model))
 #  "bid.diff ~ Group*Context*ev + (1|subjID)",
 #  ratingdata,
 #  c(
-#    "_Rating_context_" = "ContextLow volatility",
-#    "_Rating_groupxcontext_" = "GroupLow vol. first:ContextLow volatility",
-#    "_Rating_groupxev_" = "GroupLow vol. first:ev",
-#    "_Rating_contextxev_" = "ContextLow volatility:ev",
-#    "_Rating_groupxcontextxev_" = "GroupLow vol. first:ContextLow volatility:ev"
+#    "_Rating_context_" = "ContextLow variance",
+#    "_Rating_groupxcontext_" = "GroupLow var. first:ContextLow variance",
+#    "_Rating_groupxev_" = "GroupLow var. first:ev",
+#    "_Rating_contextxev_" = "ContextLow variance:ev",
+#    "_Rating_groupxcontextxev_" = "GroupLow var. first:ContextLow variance:ev"
 #  )
 #)
 
-#cc.main = get_fixef(model)["GroupLowvol.first:ContextLowvolatility", "Estimate"]
-#cc.inter = get_fixef(model)["GroupLowvol.first:ContextLowvolatility:ev", "Estimate"]
+#cc.main = get_fixef(model)["GroupLowvar.first:ContextLowvariance", "Estimate"]
+#cc.inter = get_fixef(model)["GroupLowvar.first:ContextLowvariance:ev", "Estimate"]
 
 #mm <- model.matrix(as.formula("bid.diff ~ Group*Context*ev"), data = ratingdata)
 
-#ratingdata$bid.diff.pred = ratingdata$bid.diff - cc.main * mm[, "GroupLowvol.first:ContextLowvolatility"]  -
-#  cc.inter * mm[, "GroupLowvol.first:ContextLowvolatility:amount_later_centered"]
+#ratingdata$bid.diff.pred = ratingdata$bid.diff - cc.main * mm[, "GroupLowvar.first:ContextLowvariance"]  -
+#  cc.inter * mm[, "GroupLowvar.first:ContextLowvariance:amount_later_centered"]
 #colnames(mm) <- gsub(" ", "", colnames(mm))
 
 model = fitmodel(
   "bid.diff ~ Group*Context*amount_later_centered + (1 + Group*Context*amount_later_centered|subjID)",
   ratingdata,
   c(
-    "_Rating_context_" = "ContextLow volatility",
-    "_Rating_groupxcontext_" = "GroupLow vol. first:ContextLow volatility",
-    "_Rating_groupxamount_later_centered_" = "GroupLow vol. first:amount_later_centered",
-    "_Rating_contextxamount_later_centered_" = "ContextLow volatility:amount_later_centered",
-    "_Rating_groupxcontextxamount_later_centered_" = "GroupLow vol. first:ContextLow volatility:amount_later_centered"
+    "_Rating_context_" = "ContextLow variance",
+    "_Rating_groupxcontext_" = "GroupLow var. first:ContextLow variance",
+    "_Rating_groupxamount_later_centered_" = "GroupLow var. first:amount_later_centered",
+    "_Rating_contextxamount_later_centered_" = "ContextLow variance:amount_later_centered",
+    "_Rating_groupxcontextxamount_later_centered_" = "GroupLow var. first:ContextLow variance:amount_later_centered"
   )
 )
 
@@ -138,20 +139,20 @@ print(summary(model))
 
 model.rating = model
 
-#cc.main = fixef(model)["GroupLow vol. first:ContextLow volatility"]
-#cc.inter = fixef(model)["GroupLow vol. first:ContextLow volatility:ev"]
+#cc.main = fixef(model)["GroupLow var. first:ContextLow variance"]
+#cc.inter = fixef(model)["GroupLow var. first:ContextLow variance:ev"]
 #mm = model.matrix(model)
-#ratingdata$bid.diff.pred = ratingdata$bid.diff - cc.main * mm[, "GroupLow vol. first:ContextLow volatility"]  -
-#  cc.inter * mm[, "GroupLow vol. first:ContextLow volatility:ev"]
+#ratingdata$bid.diff.pred = ratingdata$bid.diff - cc.main * mm[, "GroupLow var. first:ContextLow variance"]  -
+#  cc.inter * mm[, "GroupLow var. first:ContextLow variance:ev"]
 
-cc.main = get_fixef(model)["GroupLowvol.first:ContextLowvolatility", "Estimate"]
-cc.inter = get_fixef(model)["GroupLowvol.first:ContextLowvolatility:amount_later_centered", "Estimate"]
+cc.main = get_fixef(model)["GroupLowvar.first:ContextLowvariance", "Estimate"]
+cc.inter = get_fixef(model)["GroupLowvar.first:ContextLowvariance:amount_later_centered", "Estimate"]
 
 mm <- model.matrix(as.formula("bid.diff ~ Group*Context*amount_later_centered"), data = ratingdata)
 colnames(mm) <- gsub(" ", "", colnames(mm))
 
-ratingdata$bid.diff.pred = ratingdata$bid.diff - cc.main * mm[, "GroupLowvol.first:ContextLowvolatility"]  -
-  cc.inter * mm[, "GroupLowvol.first:ContextLowvolatility:amount_later_centered"]
+ratingdata$bid.diff.pred = ratingdata$bid.diff - cc.main * mm[, "GroupLowvar.first:ContextLowvariance"]  -
+  cc.inter * mm[, "GroupLowvar.first:ContextLowvariance:amount_later_centered"]
 
 ratingdata.mean.agg = ratingdata %>%
   group_by(subjID, Context, amount_later) %>%
