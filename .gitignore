@@ -4,3 +4,5 @@ MediationDAG.R
 stats/jags/AnalysisDDMModelParameters_files
 stats/jags/test.Rmd
 stats/tmp*
+stats/stan
+stats_ver*/
