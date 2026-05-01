@@ -29,7 +29,7 @@ NCHAINS = 10
 NCORES = 10
 ALGORITHM = "sampling" # meanfield
 ADAPT_DELTA = 0.95
-
+PRIOR_SD = 10
 statslist = list()
 convergelist = list()
 
@@ -573,9 +573,9 @@ fitmodel = function(ff,
 
 
   priors <- c(
-    set_prior("normal(0, 10)", class = "b"),
-    set_prior("cauchy(0, 10)", class = "sd"),
-    set_prior("normal(0, 10)", class = "Intercept")
+    set_prior(sprintf("normal(0, %f)", PRIOR_SD), class = "b"),
+    set_prior(sprintf("cauchy(0, %f)", PRIOR_SD), class = "sd"),
+    set_prior(sprintf("normal(0, %f)", PRIOR_SD), class = "Intercept")
   )
     
   #if (family == "binomial") {

@@ -9,6 +9,8 @@ output: html_document
 rm(list = ls())
 source("../analysis_funcs.R")
 
+PRIOR_SD = 10.0
+
 WD = '../../data'
 WDD = file.path(WD, 'experiment')
 mytheme = theme_classic(base_size = 11) + theme(legend.position = 'bottom', legend.title = element_blank())
@@ -954,10 +956,8 @@ statslist['_table_rt.cor.fixef_'] = tab_to_str(rt.cor.fixef)
 
 ```{r Write results}
 filein = '../results/results_text.txt'
-fileout = '../results/results_text_fixed.txt'
-# fileout = ifelse(!init100, 
-#   '../results/results_text_fixed.txt',
-#   '../results/results_text_fixed_100.txt')
+fileout = sprintf('../results/results_text_fixed_%f.txt', PRIOR_SD)
+
 
 mytext = readLines(filein)
 print(statslist)
